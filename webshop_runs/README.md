@@ -12,10 +12,14 @@ docker run --rm -v ./tmp:/tmp ainikolai/webshop:latest "unix:///tmp/webshop.sock
 ```
 
 ## Running the experiments
+1. Installing Requirements
 ```bash
 pip3 install -r requirements.txt
 ```
 
+Note: If you are running docker in sudo mode and you are using the unix socket version (webshop.sock) you have to run python file in sudo mode as well (to allow for the python script to access the socket.)
+
+2. running webshop
 ```bash
 python3 Webshop_adapted.py
 ```

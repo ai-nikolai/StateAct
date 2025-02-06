@@ -122,8 +122,11 @@ from bs4 import BeautifulSoup
 from bs4.element import Comment
 
 # WEBSHOP_URL = "http://3.83.245.205:3000"
-# WEBSHOP_URL = "http://127.0.0.1:3000"
-WEBSHOP_URL = "tmp/webshop.sock"
+
+
+WEBSHOP_URL = "http://127.0.0.1:3000"
+WEBSHOP_URL = os.path.join("tmp","webshop.sock")
+
 ACTION_TO_TEMPLATE = {
     'Description': 'description_page.html',
     'Features': 'features_page.html',
@@ -163,21 +166,31 @@ def tag_visible(element):
 # # END OF PATCH
 # ################################
 
-import requests_unixsocket
+if WEBSHOP_URL.endswith(".sock"):
+  import requests_unixsocket
+  session = requests_unixsocket.Session()
+
 def query_url(base_url,url_path):
   """Handle both unix socket and regular HTTP requests."""
   print(f"Attempting to query URL: {url_path}")
   if base_url.endswith(".sock"): 
-      url = f"unix://{base_url.replace('/', '%2F')}"
-      full_url = url+url_path
-      print(f"Cleaned_URL_FOR SOCKET: {full_url}")
-      # Create adapter using the unix socket
-      with requests_unixsocket.monkeypatch():
-        response = requests.get(full_url)
+    prefix="http+unix://"
+    
+    socket_root_path = os.path.dirname(os.path.realpath(__file__))
+    socket_name=base_url
+    full_socket_path = os.path.join(socket_root_path,socket_name)
+    full_socket_path_clean = full_socket_path.replace('/', '%2F')
+
+    full_url = prefix+full_socket_path_clean+url_path
+    print(full_url)
+
+    # Access /path/to/page from /tmp/profilesvc.sock
+    response = session.get(full_url)
+  
+    
   else:
-      full_url = base_url + url_path
-      # For regular HTTP requests
-      response = requests.get(full_url)
+    full_url = base_url + url_path
+    response = requests.get(full_url)
   return response.text
 
 
@@ -202,7 +215,7 @@ def webshop_text(session, page_type, query_string='', page_num=1, asin='', optio
           f'{asin}/{query_string}/{page_num}/{subpage}/{options}'
       )
     elif page_type == 'end':
-      url_pathrl = (
+      url_path = (
           f'/done/{session}/'
           f'{asin}/{options}'
       )
