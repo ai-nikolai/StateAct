@@ -1,2 +1,4 @@
 *tmp*
 alfworld_runs/playgrounds/*
+alfworld_runs/game_logs/*
+__pycache__
