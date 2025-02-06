@@ -19,6 +19,8 @@ pip3 install -r requirements.txt
 
 Note: If you are running docker in sudo mode and you are using the unix socket version (webshop.sock) you have to run python file in sudo mode as well (to allow for the python script to access the socket.)
 
+Note: Optionally, if running local (gated) LLM you might have to login into Huggingface. To do this run: `huggingface-cli login --token $HF_API_KEY`
+
 2. running webshop
 ```bash
 python3 Webshop_adapted.py

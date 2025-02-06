@@ -7,45 +7,57 @@
 
 
 import os
-import anthropic
 import sys
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--llm_type", type=str, default="NORMAL", choices=["NORMAL", "CHAT", "TROPIC", "LOCAL"])
+
+args = parser.parse_args()
+
+LLM_TYPE = args.llm_type 
 
 
-USE_GPT = True
-
-GPT_MODEL = "gpt-3.5-turbo-instruct"
-LLM_TYPE="NORMAL"
-
-# GPT_MODEL = "gpt-3.5-turbo-0125"
-# GPT_MODEL = "gpt-3.5-turbo-1106"
-# GPT_MODEL = "gpt-4-0613"
-# GPT_MODEL = "gpt-3.5-turbo"
-# LLM_TYPE="CHAT"
 
 MAX_PROMPT_LENGTH=6400
 
+if LLM_TYPE=="NORMAL":
+  print("RUNNING OPENAI WITH TEXT MODEL")
 
-CLAUDE_MODEL="claude-3-5-sonnet-latest"
-
-# LLM_TYPE="CHAT"
-# GPT_MODEL = "gpt-3.5-turbo-1106"
-# GPT_MODEL = "gpt-4o"
-# GPT_MODEL = "gpt-4o-mini"
-# MAX_PROMPT_LENGTH=128000
-
-if USE_GPT:
-  print(f"USING OPENAI:{GPT_MODEL} of type: {LLM_TYPE}")
   import openai
+  MODEL = "gpt-3.5-turbo-instruct"
   openai.api_key = os.environ["OPENAI_API_KEY"]
   client = openai.OpenAI()
-  MODEL = GPT_MODEL
 
-else:
-  print(f"USING ANTHROPIC: {CLAUDE_MODEL}")
+
+elif LLM_TYPE=="CHAT":
+  print("RUNNING OPENAI WITH CHAT MODEL")
+
+  import openai
+  MODEL = "gpt-3.5-turbo-0125" 
+  openai.api_key = os.environ["OPENAI_API_KEY"]
+  client = openai.OpenAI()
+
+  # GPT_MODEL = "gpt-3.5-turbo-0125"
+  # GPT_MODEL = "gpt-3.5-turbo-1106"
+  # GPT_MODEL = "gpt-4-0613"
+  # GPT_MODEL = "gpt-3.5-turbo"
+  # MAX_PROMPT_LENGTH=128000
+
+
+elif LLM_TYPE=="TROPIC":
+  print("RUNNING ANTHROPIC WITH CHAT MODEL")
+
+  MODEL="claude-3-5-sonnet-latest"
   import anthropic
   client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-  LLM_TYPE="TROPIC"
-  MODEL = CLAUDE_MODEL
+
+elif LLM_TYPE=="LOCAL":
+  print("RUNNING LOCAL WITH VLLM Backend")
+  from vllm import LLM, SamplingParams
+  MODEL="Qwen/Qwen2.5-0.5B-Instruct"
+
+print(f"The used model is {MODEL}")
 
 def llm(prompt, stop=["\n"]):
     # MODEL = MODEL
@@ -106,6 +118,28 @@ def llm_tropic(prompt, stop=["\n"]):
   )
   return response.content[0].text
 
+def local_llm_closure():
+  # Initialize model with HF token authentication
+  llm = LLM(
+      model=MODEL,
+      trust_remote_code=True,
+      # download_dir="/tmp/model_cache", 
+  )
+  def llm_local(prompt, stop=["\n"]):  
+    # Set sampling parameters
+    sampling_params = SamplingParams(
+        temperature=0,
+        max_tokens=500,
+        stop=stop
+    )
+    
+    # Generate completion
+    outputs = llm.generate(prompt, sampling_params)
+    return outputs[0].outputs[0].text
+  
+  return llm_local
+
+
 # In[2]:
 
 if LLM_TYPE=="NORMAL":
@@ -114,6 +148,8 @@ elif LLM_TYPE=="CHAT":
   call_llm = llm_chat
 elif LLM_TYPE=="TROPIC":
   call_llm = llm_tropic
+elif LLM_TYPE=="LOCAL":
+  call_llm = local_llm_closure()
 
 
 
@@ -1564,7 +1600,7 @@ def run_episodes(prompt, n=50, s=0, state=None, max_steps=15):
 # In[6]:
 import time
 s=0
-N=30
+N=1
 MS = 15
  
 experiments_to_run = ["act","react","stateact","stateact-no-thoughts","stateact-no-goal","stateact-no-state"]
@@ -1745,7 +1781,7 @@ if "no-goal-stateact2" in experiments_to_run:
 
 
 print('=====================')
-print(f'-FINAL RESULTS-{GPT_MODEL}')
+print(f'-FINAL RESULTS-{LLM_TYPE}-{MODEL}')
 print('---------------------')
 
 print(f"s={s}, N={N}")
