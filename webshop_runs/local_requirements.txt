@@ -1,0 +1,4 @@
+requests>=2.32.3
+beautifulsoup4>=4.13.3
+requests_unixsocket2>=0.4.2 #unixsocket seems to be broken https://github.com/msabramo/requests-unixsocket/issues/73
+vllm>=0.7.1
