@@ -1,6 +1,6 @@
 # If you have a PBS (or similarly SLURM) cluster.
 
-## Prepare the image:
+## Prepare the image and run:
 1. Download image: (e.g. into webshop_run)
 ```bash
 singularity pull --name webshop.simg docker://ainikolai/webshop:latest
@@ -40,4 +40,10 @@ singularity exec --userns --overlay $MY_HOME/stateact/webshop_runs/webshop_overl
 sleep 30 #increase this number if necessary
 
 curl --unix-socket ./tmp/webshop.sock localhost/abc
+```
+
+---
+## To then Run Webshop in the same PBS script:
+```bash
+python3 WebShop_adapted.py --llm_type LOCAL --socket ./tmp/webshop.sock
 ```
