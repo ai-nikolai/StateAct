@@ -1914,3 +1914,140 @@ if "ta" in experiments_to_run:
   print(t14e)
   print(steps14)
   print(sum(steps14)/len(steps14))
+
+
+# OUTPUTTING RESULTS TO A FILE
+from datetime import datetime
+
+output_str = f'''=====================
+-FINAL RESULTS-{LLM_TYPE}-{MODEL}
+---------------------
+s={s}, N={N}
+''' + '\n'.join([
+    f'''=====================0-actonly
+{res0}
+{sc0}
+{t0s}
+{t0e}
+{steps0}
+{sum(steps0)/len(steps0)}''' if "act" in experiments_to_run else '',
+    f'''=====================1-react
+{res1}
+{sc1}
+{t1s}
+{t1e}
+{steps1}
+{sum(steps1)/len(steps1)}''' if "react" in experiments_to_run else '',
+    f'''=====================2-ta
+{res2}
+{sc2}
+{t2s}
+{t2e}
+{steps2}
+{sum(steps2)/len(steps2)}''' if "ta" in experiments_to_run else '',
+    f'''=====================3
+{res3}
+{sc3}
+{t3s}
+{t3e}
+{steps3}
+{sum(steps3)/len(steps3)}''' if "gsta" in experiments_to_run else '',
+    f'''=====================4
+{res4}
+{sc4}
+{t4s}
+{t4e}
+{steps4}
+{sum(steps4)/len(steps4)}''' if "ta" in experiments_to_run else '',
+    f'''=====================5-ssta
+{res5}
+{sc5}
+{t5s}
+{t5e}
+{steps5}
+{sum(steps5)/len(steps5)}''' if "stateact-no-goal" in experiments_to_run else '',
+    f'''=====================6-gssta
+{res6}
+{sc6}
+{t6s}
+{t6e}
+{steps6}
+{sum(steps6)/len(steps6)}''' if "stateact" in experiments_to_run else '',
+    f'''=====================7-ssa
+{res7}
+{sc7}
+{t7s}
+{t7e}
+{steps7}
+{sum(steps7)/len(steps7)}''' if "ssa" in experiments_to_run else '',
+    f'''=====================8
+{res8}
+{sc8}
+{t8s}
+{t8e}
+{steps8}
+{sum(steps8)/len(steps8)}''' if "ta" in experiments_to_run else '',
+    f'''=====================9-gssa
+{res9}
+{sc9}
+{t9s}
+{t9e}
+{steps9}
+{sum(steps9)/len(steps9)}''' if "stateact-no-thoughts" in experiments_to_run else '',
+    f'''=====================10
+{res10}
+{sc10}
+{t10s}
+{t10e}
+{steps10}
+{sum(steps10)/len(steps10)}''' if "ta" in experiments_to_run else '',
+    f'''=====================11-gta
+{res11}
+{sc11}
+{t11s}
+{t11e}
+{steps11}
+{sum(steps11)/len(steps11)}''' if "stateact-no-state" in experiments_to_run else '',
+    f'''=====================12-ta2
+{res12}
+{sc12}
+{t12s}
+{t12e}
+{steps12}
+{sum(steps12)/len(steps12)}''' if "ta" in experiments_to_run else '',
+    f'''=====================13-gssta2
+{res13}
+{sc13}
+{t13s}
+{t13e}
+{steps13}
+{sum(steps13)/len(steps13)}''' if "stateact2" in experiments_to_run else '',
+    f'''=====================14-ssta2
+{res14}
+{sc14}
+{t14s}
+{t14e}
+{steps14}
+{sum(steps14)/len(steps14)}''' if "ta" in experiments_to_run else ''
+])
+
+
+import string
+
+def clean_model_string(s):
+    # Convert to lowercase
+    s = s.lower()
+    # Replace / with _
+    s = s.replace('/', '_')
+    # Replace all punctuation (except _) with -
+    # Create a translation table that maps all punctuation to - except _
+    punct_to_dash = str.maketrans({p: '-' for p in string.punctuation if p != '_'})
+    s = s.translate(punct_to_dash)
+    return s
+
+clean_model_name = clean_model_string(MODEL)
+file_name = f'webshop_results_{experiments_to_run[0]}_{clean_model_name}_s={s}_N={N}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt'
+
+with open(file_name, 'w') as f:
+    f.write(output_str)
+  
