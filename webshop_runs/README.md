@@ -26,6 +26,17 @@ Note: Optionally, if running local (gated) LLM you might have to login into Hugg
 python3 Webshop_adapted.py
 ```
 
+```bash
+python3 WebShop_adapted.py \
+    --llm_type LOCAL \
+    --socket ./tmp/webshop.sock \
+    --model_local "Qwen/Qwen2.5-0.5B-Instruct" \
+    --start 0 \
+    --num_env 30 \
+    --agent react
+```
+
+
 ## In case you need to run it on an HPC cluster (e.g. PBS or SLURM) and you don't have access to docker
 See `hpc_scripts/README.md` for more details on how to run using Singularity.
 

@@ -1,11 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# # Setup
-
-# In[1]:
-
-
 import os
 import sys
 import argparse
@@ -14,6 +6,23 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--llm_type", type=str, default="NORMAL", choices=["NORMAL", "CHAT", "TROPIC", "LOCAL"])
 parser.add_argument("--socket", type=str, default="tmp/webshop.sock")
 parser.add_argument("--model_local", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
+parser.add_argument("--start", type=int, default=0)
+parser.add_argument("--num_envs", type=int, default=30)
+parser.add_argument(
+  "--agent", 
+  type=str, 
+  default="react", 
+  choices=[
+    "act",
+    "react",
+    "stateact",
+    "stateact-no-thoughts",
+    "stateact-no-goal",
+    "stateact-no-state",
+    "ssa",
+    "stateact2"
+  ]
+)
 
 args = parser.parse_args()
 
@@ -1601,35 +1610,17 @@ def run_episodes(prompt, n=50, s=0, state=None, max_steps=15):
 
 # In[6]:
 import time
-s=0
-N=1
+s=args.start
+N=args.num_envs
 MS = 15
+
+if args.agent:
+  experiments_to_run = [args.agent]
+else:
+  experiments_to_run = ["react"]
  
-experiments_to_run = ["act","react","stateact","stateact-no-thoughts","stateact-no-goal","stateact-no-state"]
-# experiments_to_run = ["act"]
-experiments_to_run = ["react"]
-# experiments_to_run = ["stateact"]
-# experiments_to_run = ["stateact-no-thoughts"]
-# experiments_to_run = ["ssa"]
-# experiments_to_run = ["stateact2"]
-# experiments_to_run = ["gsta"]
+# experiments_to_run = ["act","react","stateact","stateact-no-thoughts","stateact-no-goal","stateact-no-state","ssa","stateact2"]
 
-# experiments_to_run = ["stateact2","ssa","react","stateact","stateact-no-thoughts"]
-
-# experiments_to_run = ["stateact2"]
-
-# starting price 33.11
-# [0, 0.6666666666666666, 0.5, 0.75, 1.0, 0, 0.6666666666666666, 0.6666666666666666, 0.6666666666666666, 0.5]
-# (0.5416666666666667, 0.1, 0.0)
-
-# [0, 0, 0.5, 0.75, 1.0, 0.6666666666666666, 1.0, 0.6666666666666666, 0.6666666666666666, 0.5]
-# (0.575, 0.2, 0.0)
-
-# [0, 0, 0.5, 0, 1.0, 0, 0.6666666666666666, 0.6666666666666666, 0.6666666666666666, 0.5]
-# (0.39999999999999997, 0.1, 0.0)
-
-# [0, 0, 0.5, 0.75, 1.0, 0, 0, 0.6666666666666666, 0.6666666666666666, 1.0]
-# (0.4583333333333333, 0.2, 0.0)
 
 if "act" in experiments_to_run:
   t0s = time.localtime()
@@ -1923,33 +1914,3 @@ if "ta" in experiments_to_run:
   print(t14e)
   print(steps14)
   print(sum(steps14)/len(steps14))
-
-# =====================
-# -FINAL RESULTS-
-# ---------------------
-# =====================1
-# [0, 0, 0.5, 0.75, 1.0, 0, 0.6666666666666666, 0.6666666666666666, 0.6666666666666666, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-# (0.0475, 0.01, 0.0)
-# time.struct_time(tm_year=2024, tm_mon=5, tm_mday=25, tm_hour=18, tm_min=57, tm_sec=17, tm_wday=5, tm_yday=146, tm_isdst=1)
-# time.struct_time(tm_year=2024, tm_mon=5, tm_mday=25, tm_hour=19, tm_min=14, tm_sec=25, tm_wday=5, tm_yday=146, tm_isdst=1)
-# =====================2
-# [0, 0, 0.5, 0.75, 1.0, 0.6666666666666666, 0.6666666666666666, 0.6666666666666666, 0.6666666666666666, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-# (0.05416666666666667, 0.01, 0.0)
-# time.struct_time(tm_year=2024, tm_mon=5, tm_mday=25, tm_hour=19, tm_min=14, tm_sec=25, tm_wday=5, tm_yday=146, tm_isdst=1)
-# time.struct_time(tm_year=2024, tm_mon=5, tm_mday=25, tm_hour=19, tm_min=31, tm_sec=4, tm_wday=5, tm_yday=146, tm_isdst=1)
-# =====================3
-# [0, 1.0, 0.5, 0.75, 1.0, 0, 0.6666666666666666, 1.0, 0.6666666666666666, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-# (0.05583333333333333, 0.03, 0.0)
-# time.struct_time(tm_year=2024, tm_mon=5, tm_mday=25, tm_hour=19, tm_min=31, tm_sec=4, tm_wday=5, tm_yday=146, tm_isdst=1)
-# time.struct_time(tm_year=2024, tm_mon=5, tm_mday=25, tm_hour=19, tm_min=49, tm_sec=48, tm_wday=5, tm_yday=146, tm_isdst=1)
-# =====================4
-# [0, 0, 0.5, 0.75, 1.0, 0, 0.6666666666666666, 1.0, 0.6666666666666666, 1.0, 0.75, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-# (0.06333333333333332, 0.03, 0.0)
-# time.struct_time(tm_year=2024, tm_mon=5, tm_mday=25, tm_hour=19, tm_min=49, tm_sec=48, tm_wday=5, tm_yday=146, tm_isdst=1)
-# time.struct_time(tm_year=2024, tm_mon=5, tm_mday=25, tm_hour=20, tm_min=8, tm_sec=43, tm_wday=5, tm_yday=146, tm_isdst=1)
-
-
-
-# (0.655673333333334, 0.346, 0.0)
-# (0.6262000000000003, 0.346, 0.0)
-# 0.6276766666666669 0.344 0.0 7.196
