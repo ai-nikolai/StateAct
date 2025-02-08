@@ -13,6 +13,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--llm_type", type=str, default="NORMAL", choices=["NORMAL", "CHAT", "TROPIC", "LOCAL"])
 parser.add_argument("--socket", type=str, default="tmp/webshop.sock")
+parser.add_argument("--model_local", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
+
 args = parser.parse_args()
 
 LLM_TYPE = args.llm_type 
@@ -55,7 +57,7 @@ elif LLM_TYPE=="TROPIC":
 elif LLM_TYPE=="LOCAL":
   print("RUNNING LOCAL WITH VLLM Backend")
   from vllm import LLM, SamplingParams
-  MODEL="Qwen/Qwen2.5-0.5B-Instruct"
+  MODEL= args.model_local
 
 print(f"The used model is {MODEL}")
 

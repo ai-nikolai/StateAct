@@ -45,5 +45,5 @@ curl --unix-socket ./tmp/webshop.sock localhost/abc
 ---
 ## To then Run Webshop in the same PBS script:
 ```bash
-python3 WebShop_adapted.py --llm_type LOCAL --socket ./tmp/webshop.sock
+python3 WebShop_adapted.py --llm_type LOCAL --socket ./tmp/webshop.sock --model_local "Qwen/Qwen2.5-0.5B-Instruct"
 ```
