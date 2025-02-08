@@ -12,7 +12,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--llm_type", type=str, default="NORMAL", choices=["NORMAL", "CHAT", "TROPIC", "LOCAL"])
-
+parser.add_argument("--socket", type=str, default="tmp/webshop.sock")
 args = parser.parse_args()
 
 LLM_TYPE = args.llm_type 
@@ -161,7 +161,7 @@ from bs4.element import Comment
 
 
 WEBSHOP_URL = "http://127.0.0.1:3000"
-WEBSHOP_URL = os.path.join("tmp","webshop.sock")
+WEBSHOP_URL = args.socket # os.path.join("tmp","webshop.sock")
 
 ACTION_TO_TEMPLATE = {
     'Description': 'description_page.html',

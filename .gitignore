@@ -2,3 +2,6 @@
 alfworld_runs/archive/*
 alfworld_runs/game_logs/*
 __pycache__
+
+webshop_runs/*.img
+webshop_runs/*.simg

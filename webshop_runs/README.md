@@ -25,3 +25,7 @@ Note: Optionally, if running local (gated) LLM you might have to login into Hugg
 ```bash
 python3 Webshop_adapted.py
 ```
+
+## In case you need to run it on an HPC cluster (e.g. PBS or SLURM) and you don't have access to docker
+See `hpc_scripts/README.md` for more details on how to run using Singularity.
+
