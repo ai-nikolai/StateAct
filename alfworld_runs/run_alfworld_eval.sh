@@ -34,7 +34,7 @@ if [ $1 == "test_ours_local" ]; then
         --agent "ours-text" \
         --llm_type "VLLMChat" \
         --model "Qwen/Qwen2.5-1.5B-Instruct" \
-        --trial_name "v5_0_1_test_local" \
+        --trial_name "v5_test_local" \
         --start_index 0 \
         --num_envs 1 \
         --prompt_ids 0 1 \

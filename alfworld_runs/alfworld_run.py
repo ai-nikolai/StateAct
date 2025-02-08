@@ -487,11 +487,15 @@ AGENT_MODEL_MAPPING = {
     "OpenAIChatTextSampling" : ["gpt-3.5-turbo-0125", "gpt-4-turbo-preview","gpt-3.5-turbo-0301", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-1106"],
     "NvidiaChatText" :["mistralai/mixtral-8x22b-instruct-v0.1","meta/llama-3.1-8b-instruct","meta/llama-3.1-70b-instruct"],
     "CerebrasChatText" :["llama3.1-8b","llama3.1-70b"],
-    "VLLMChat" : ["Qwen/Qwen2.5-0.5B-Instruct","Qwen/Qwen2.5-1.5B-Instruct"]
+    "VLLMChat" : [
+        "Qwen/Qwen2.5-0.5B-Instruct",
+        "Qwen/Qwen2.5-1.5B-Instruct", 
+        "Qwen/Qwen2.5-14B-Instruct",
+    ]
 }
 
 
-def get_agent_and_model(llm_type, temperature=0.0, proposed_model=""):
+def get_agent_and_model(llm_type, temperature=0.0, proposed_model="", force_model=False):
     """ Returns Agent, Model"""
     print(llm_type)
     print(proposed_model)
@@ -502,7 +506,10 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model=""):
             if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
                 model = proposed_model
             else:
-                print("Proposed Model is not available using default model.")
+                print("WARNING: Proposed Model is not in LIST!!!")
+                if force_model:
+                    print("WARNING: Using your model in anycase.")
+                    model = proposed_model
         agent = AnthropicChat(temperature=temperature, model=model)
 
     elif llm_type == "CohereChat":
@@ -513,7 +520,10 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model=""):
             if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
                 model = proposed_model
             else:
-                print("Proposed Model is not available using default model.")
+                print("WARNING: Proposed Model is not in LIST!!!")
+                if force_model:
+                    print("WARNING: Using your model in anycase.")
+                    model = proposed_model
         agent = CohereChat(temperature=temperature, model=model)
 
     elif llm_type=="OpenAIChat":
@@ -523,7 +533,10 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model=""):
             if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
                 model = proposed_model
             else:
-                print("Proposed Model is not available using default model.")
+                print("WARNING: Proposed Model is not in LIST!!!")
+                if force_model:
+                    print("WARNING: Using your model in anycase.")
+                    model = proposed_model
         agent = OpenAIChat(temperature=temperature, model=model)
 
 
@@ -534,7 +547,10 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model=""):
             if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
                 model = proposed_model
             else:
-                print("Proposed Model is not available using default model.")
+                print("WARNING: Proposed Model is not in LIST!!!")
+                if force_model:
+                    print("WARNING: Using your model in anycase.")
+                    model = proposed_model
         # model = "claude-1.2"
         model = "claude-2.1"
         agent = AnthropicText(temperature=temperature, model=model)
@@ -547,7 +563,10 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model=""):
             if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
                 model = proposed_model
             else:
-                print("Proposed Model is not available using default model.")
+                print("WARNING: Proposed Model is not in LIST!!!")
+                if force_model:
+                    print("WARNING: Using your model in anycase.")
+                    model = proposed_model
         agent = CohereText(temperature=temperature, model=model)
 
     elif llm_type=="OpenAIText":
@@ -557,7 +576,10 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model=""):
             if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
                 model = proposed_model
             else:
-                print("Proposed Model is not available using default model.")
+                print("WARNING: Proposed Model is not in LIST!!!")
+                if force_model:
+                    print("WARNING: Using your model in anycase.")
+                    model = proposed_model
         agent = OpenAIText(temperature=temperature, model=model)
 
 
@@ -571,7 +593,10 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model=""):
             if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
                 model = proposed_model
             else:
-                print("Proposed Model is not available using default model.")
+                print("WARNING: Proposed Model is not in LIST!!!")
+                if force_model:
+                    print("WARNING: Using your model in anycase.")
+                    model = proposed_model
         agent = CohereChatText(temperature=temperature, model=model)
 
 
@@ -582,7 +607,10 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model=""):
             if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
                 model = proposed_model
             else:
-                print("Proposed Model is not available using default model.")
+                print("WARNING: Proposed Model is not in LIST!!!")
+                if force_model:
+                    print("WARNING: Using your model in anycase.")
+                    model = proposed_model
         agent = OpenAIChatText(temperature=temperature, model=model)
 
 
@@ -593,7 +621,10 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model=""):
             if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
                 model = proposed_model
             else:
-                print("Proposed Model is not available using default model.")
+                print("WARNING: Proposed Model is not in LIST!!!")
+                if force_model:
+                    print("WARNING: Using your model in anycase.")
+                    model = proposed_model
         agent = OpenAIChatTextSampling(temperature=temperature, model=model)
 
     elif llm_type=="NvidiaChatText":
@@ -604,7 +635,10 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model=""):
             if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
                 model = proposed_model
             else:
-                print("Proposed Model is not available using default model.")
+                print("WARNING: Proposed Model is not in LIST!!!")
+                if force_model:
+                    print("WARNING: Using your model in anycase.")
+                    model = proposed_model
         agent = NvidiaChatText(temperature=temperature, model=model)
 
     elif llm_type=="CerebrasChatText":
@@ -613,7 +647,10 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model=""):
             if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
                 model = proposed_model
             else:
-                print("Proposed Model is not available using default model.")
+                print("WARNING: Proposed Model is not in LIST!!!")
+                if force_model:
+                    print("WARNING: Using your model in anycase.")
+                    model = proposed_model
         agent = CerebrasChatText(temperature=temperature, model=model)
 
     elif llm_type=="VLLMChat":
@@ -622,7 +659,11 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model=""):
             if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
                 model = proposed_model
             else:
-                print("Proposed Model is not available using default model.")
+                print("WARNING: Proposed Model is not in LIST!!!")
+                if force_model:
+                    print("WARNING: Using your model in anycase.")
+                    model = proposed_model
+
         agent = VLLMChat(model=model)
 
 
@@ -832,7 +873,8 @@ def build_arg_parser():
     parser.add_argument("--resample", action="store_true", default=False, help="Whether to resample on repetition")
     parser.add_argument("--resample_temperature", type=float, default=0.1, help="Resample Temperature increase.")
 
-    parser.add_argument("--force_run", action="store_true", default=False, help="Whether to apply the 'Put Regex' correction")
+    parser.add_argument("--force_run", action="store_true", default=False, help="Whether to run the experiments regardless")
+    parser.add_argument("--force_model", action="store_true", default=False, help="Whether to force the proposed model")
 
     parser.add_argument("--silent", action="store_true", default=False, help="Whether to suppress messages during the game loop.")
 
@@ -1056,7 +1098,13 @@ if __name__=="__main__":
     #######################################################
     # AGENT Related
     #######################################################
-    agent, actual_model = get_agent_and_model(llm_type=llm_type, temperature=temperature, proposed_model=model)
+    agent, actual_model = get_agent_and_model(
+        llm_type=llm_type, 
+        temperature=temperature, 
+        proposed_model=model, 
+        force_model=args.force_model
+    )
+    
     agent.update_save_path(SAVE_FOLDER)
 
     if RESAMPLE:
@@ -1075,11 +1123,14 @@ if __name__=="__main__":
     if actual_model != model:
         print(f"WARNING: Your model:{model} is not used, instead using default model: {actual_model}")
         print("Do you still want to continue? Press 'y' to continue.")
-        user_input = input(">")
-        if user_input=="y":
-            pass
+        if args.force_run:
+            print("WARNING: Running anyways")
         else:
-            exit(1)
+            user_input = input(">")
+            if user_input=="y":
+                pass
+            else:
+                exit(1)
 
 
     #######################################################
