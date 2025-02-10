@@ -135,16 +135,28 @@ def llm_tropic(prompt, stop=["\n"]):
 
 def local_llm_closure():
   # Initialize model with HF token authentication
-  llm = LLM(
-      model=MODEL,
-      trust_remote_code=True,
-      max_model_len=MAX_PROMPT_LENGTH,
-      tensor_parallel_size=1,
-      gpu_memory_utilization=0.95,
-      dtype="auto",
-      quantization=bool(args.quantization)
-      # download_dir="/tmp/model_cache", 
-  )
+  if args.quantization:
+    llm = LLM(
+        model=MODEL,
+        trust_remote_code=True,
+        max_model_len=MAX_PROMPT_LENGTH,
+        tensor_parallel_size=1,
+        gpu_memory_utilization=0.95,
+        dtype="auto",
+        # download_dir="/tmp/model_cache", 
+    )
+  else:
+    llm = LLM(
+        model=MODEL,
+        trust_remote_code=True,
+        max_model_len=MAX_PROMPT_LENGTH,
+        tensor_parallel_size=1,
+        gpu_memory_utilization=0.95,
+        dtype="auto",
+        quantization="bitsandbytes", 
+        load_format="bitsandbytes"        
+        # download_dir="/tmp/model_cache", 
+    )
   def llm_local(prompt, stop=["\n"]):  
     # Set sampling parameters
     sampling_params = SamplingParams(
