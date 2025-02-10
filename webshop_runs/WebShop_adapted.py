@@ -135,7 +135,7 @@ def llm_tropic(prompt, stop=["\n"]):
 
 def local_llm_closure():
   # Initialize model with HF token authentication
-  if args.quantization:
+  if not args.quantization:
     llm = LLM(
         model=MODEL,
         trust_remote_code=True,
