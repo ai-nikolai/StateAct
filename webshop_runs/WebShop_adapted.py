@@ -11,6 +11,7 @@ parser.add_argument("--start", type=int, default=0)
 parser.add_argument("--num_envs", type=int, default=30)
 parser.add_argument("--max_model_len", type=int, default=6400)
 parser.add_argument("--quantization", type=int, default=0, help="Whether a quantized model is being loaded.")
+parser.add_argument("--gpus", type=int, default=1, help="Number of GPUs to use")
 
 parser.add_argument(
   "--agent", 
@@ -143,6 +144,7 @@ def local_llm_closure():
         tensor_parallel_size=1,
         gpu_memory_utilization=0.95,
         dtype="auto",
+        tensor_parallel_size=args.gpus,
         # download_dir="/tmp/model_cache", 
     )
   else:
@@ -154,7 +156,8 @@ def local_llm_closure():
         gpu_memory_utilization=0.95,
         dtype="auto",
         quantization="bitsandbytes", 
-        load_format="bitsandbytes"        
+        load_format="bitsandbytes",
+        tensor_parallel_size=args.gpus,    
         # download_dir="/tmp/model_cache", 
     )
   def llm_local(prompt, stop=["\n"]):  
@@ -261,6 +264,18 @@ def query_url(base_url,url_path):
     response = requests.get(full_url)
   return response.text
 
+# def transform_options(options):
+#   """if options dict then turn into url param"""
+#       if type(options)==dict:
+#         param = ''
+#         for k in sorted(options):
+#           param += f'"{k}":"{options[k]}"'
+#           if k != sorted(options)[-1]:
+#             param += ','
+#         return '{' + param + '}'
+#       else:
+#         return options
+  
 
 def webshop_text(session, page_type, query_string='', page_num=1, asin='', options={}, subpage='', **kwargs):
     if page_type == 'init':
@@ -2069,6 +2084,6 @@ def clean_model_string(s):
 clean_model_name = clean_model_string(MODEL)
 file_name = f'webshop_results_{experiments_to_run[0]}_{clean_model_name}_s={s}_N={N}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt'
 
-with open(file_name, 'w') as f:
+with open(os.path.join("results",file_name), 'w') as f:
     f.write(output_str)
   
