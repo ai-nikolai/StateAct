@@ -495,7 +495,7 @@ AGENT_MODEL_MAPPING = {
 }
 
 
-def get_agent_and_model(llm_type, temperature=0.0, proposed_model="", force_model=False):
+def get_agent_and_model(llm_type, temperature=0.0, proposed_model="", force_model=False, **kwargs):
     """ Returns Agent, Model"""
     print(llm_type)
     print(proposed_model)
@@ -664,7 +664,7 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model="", force_mode
                     print("WARNING: Using your model in anycase.")
                     model = proposed_model
 
-        agent = VLLMChat(model=model)
+        agent = VLLMChat(model=model, **kwargs)
 
 
     elif llm_type=="Human":
@@ -767,7 +767,7 @@ def get_prompt_example(agent_type, env_type, prompt_ids, version, generate_promp
 
         prompt_name = f"jsonstate-{prompt_id_string}-k-{keys_string}"
 
-    elif agent_type=="ours-text":
+    elif agent_type=="ours-text" or agent_type=="stateact":
         if generate_prompt:
             prompt_example = return_stringstate_prompt(env_type, prompt_ids=prompt_ids, keys_to_use=keys_to_use, key_renaming=key_renaming)
         prompt_id_string = '_'.join([str(y) for y in prompt_ids])
@@ -775,6 +775,15 @@ def get_prompt_example(agent_type, env_type, prompt_ids, version, generate_promp
         keys_string = '+'.join([str(y) for y in keys_to_use])
 
         prompt_name = f"stringstate-{prompt_id_string}-k-{keys_string}"
+
+    elif agent_type=="act":
+        keys_to_use = ["action"]
+        if generate_prompt:
+            prompt_example = return_stringstate_prompt(env_type, prompt_ids=prompt_ids, keys_to_use=keys_to_use, key_renaming=key_renaming)
+        prompt_id_string = '_'.join([str(y) for y in prompt_ids])
+        # TODO: properly test key_renaming.
+        keys_string = '+'.join([str(y) for y in keys_to_use])
+        prompt_name = f"act-{prompt_id_string}"
 
     else:
         raise NotImplementedError(f"Trying to call agent_type: {agent_type}, but it doesn't exist.")
@@ -814,7 +823,9 @@ def build_arg_parser():
             "jsonreact",
             "agentbench",
             "ours",
-            "ours-text"
+            "ours-text",
+            "stateact",
+            "act"
         ],
         help="The Agent / Method choice.",
     )
@@ -875,6 +886,10 @@ def build_arg_parser():
 
     parser.add_argument("--force_run", action="store_true", default=False, help="Whether to run the experiments regardless")
     parser.add_argument("--force_model", action="store_true", default=False, help="Whether to force the proposed model")
+
+    # Local model params
+    parser.add_argument("--max_model_len", type=int, help="Max Model Len")
+    parser.add_argument("--quantization", type=int, default=0, "Whether a quantized model is being loaded.")
 
     parser.add_argument("--silent", action="store_true", default=False, help="Whether to suppress messages during the game loop.")
 
@@ -951,7 +966,7 @@ if __name__=="__main__":
     JSON_REACT_PROMPT = True if AGENT_TYPE == "jsonreact" else False
 
 
-    OUR_TEXT_PROMPTS = True if AGENT_TYPE == "ours-text" else False
+    OUR_TEXT_PROMPTS = True if (AGENT_TYPE == "ours-text") or (AGENT_TYPE == "stateact") or (AGENT_TYPE == "act") else False
     NOT_JSON_PROMPTS = REACT_PROMPT or AGENTBENCH_PROMPT or llm_type == "Human"
 
     # NUM_EXAMPLES = args.num_prompts
@@ -1102,7 +1117,9 @@ if __name__=="__main__":
         llm_type=llm_type, 
         temperature=temperature, 
         proposed_model=model, 
-        force_model=args.force_model
+        force_model=args.force_model,
+        max_model_len=args.max_model_len,
+        quantization=bool(args.quantization)
     )
     
     agent.update_save_path(SAVE_FOLDER)
