@@ -10,7 +10,7 @@ parser.add_argument("--model_local", type=str, default="Qwen/Qwen2.5-0.5B-Instru
 parser.add_argument("--start", type=int, default=0)
 parser.add_argument("--num_envs", type=int, default=30)
 parser.add_argument("--max_model_len", type=int, default=6400)
-parser.add_argument("--quantization", type=int, default=0, "Whether a quantized model is being loaded.")
+parser.add_argument("--quantization", type=int, default=0, help="Whether a quantized model is being loaded.")
 
 parser.add_argument(
   "--agent", 

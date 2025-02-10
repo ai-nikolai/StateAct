@@ -889,7 +889,7 @@ def build_arg_parser():
 
     # Local model params
     parser.add_argument("--max_model_len", type=int, help="Max Model Len")
-    parser.add_argument("--quantization", type=int, default=0, "Whether a quantized model is being loaded.")
+    parser.add_argument("--quantization", type=int, default=0, help="Whether a quantized model is being loaded.")
 
     parser.add_argument("--silent", action="store_true", default=False, help="Whether to suppress messages during the game loop.")
 
