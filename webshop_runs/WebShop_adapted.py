@@ -2,12 +2,16 @@ import os
 import sys
 import argparse
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--llm_type", type=str, default="NORMAL", choices=["NORMAL", "CHAT", "TROPIC", "LOCAL"])
 parser.add_argument("--socket", type=str, default="tmp/webshop.sock")
 parser.add_argument("--model_local", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
 parser.add_argument("--start", type=int, default=0)
 parser.add_argument("--num_envs", type=int, default=30)
+parser.add_argument("--max_model_len", type=int, default=6400)
+parser.add_argument("--quantization", type=int, default=0, "Whether a quantized model is being loaded.")
+
 parser.add_argument(
   "--agent", 
   type=str, 
@@ -27,10 +31,10 @@ parser.add_argument(
 args = parser.parse_args()
 
 LLM_TYPE = args.llm_type 
+MAX_PROMPT_LENGTH=min(args.max_model_len,6400)
 
 
 
-MAX_PROMPT_LENGTH=6400
 
 if LLM_TYPE=="NORMAL":
   print("RUNNING OPENAI WITH TEXT MODEL")
@@ -134,6 +138,11 @@ def local_llm_closure():
   llm = LLM(
       model=MODEL,
       trust_remote_code=True,
+      max_model_len=MAX_PROMPT_LENGTH,
+      tensor_parallel_size=1,
+      gpu_memory_utilization=0.95,
+      dtype="auto",
+      quantization=bool(args.quantization)
       # download_dir="/tmp/model_cache", 
   )
   def llm_local(prompt, stop=["\n"]):  
