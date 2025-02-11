@@ -195,7 +195,8 @@ from bs4.element import Comment
 
 
 WEBSHOP_URL = "http://127.0.0.1:3000"
-WEBSHOP_URL = args.socket # os.path.join("tmp","webshop.sock")
+if args.socket:
+  WEBSHOP_URL = args.socket # os.path.join("tmp","webshop.sock")
 
 ACTION_TO_TEMPLATE = {
     'Description': 'description_page.html',
@@ -1809,7 +1810,7 @@ if "no-goal-stateact2" in experiments_to_run:
 
 
 print('=====================')
-print(f'-FINAL RESULTS-{LLM_TYPE}-{MODEL}')
+print(f'-FINAL RESULTS-{LLM_TYPE}-{MODEL}-{MAX_PROMPT_LENGTH}')
 print('---------------------')
 
 print(f"s={s}, N={N}")
