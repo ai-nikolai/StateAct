@@ -19,11 +19,12 @@ from textcraft import TextCraft
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
+
 LM = 'gpt-3.5-turbo-instruct'
 max_runs = 40
-max_depth = 4
-num_games = 1 #originally 200
-verbose = False
+# max_depth = 4
+# num_games = 200 #originally 200
+# verbose = False
 
 # env = TextCraft(minecraft_dir="../EnvironmentWebs/environments/textcraft/")
 env = TextCraft()
@@ -159,7 +160,7 @@ def fetch_args(args_lookup, logic_exp):
             out['steps'][s] = fetch_args(args_lookup, step)
     return out
 
-def textcraft_run_react(prompt, to_print=True, ob='', env=env, max_runs=max_runs, output_term=True):
+def textcraft_run_react(prompt, to_print=True, ob='', env=env, max_runs=40, output_term=True):
     if isinstance(prompt, list): 
         init_prompt = copy.copy(prompt)
         init_prompt.append({'type': 'env', 'content': ob})
@@ -203,7 +204,7 @@ def textcraft_run_react(prompt, to_print=True, ob='', env=env, max_runs=max_runs
     return 0, success, terminate,  prompt, action_history, num_runs
 
 
-def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=max_runs, output_term=True):
+def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, output_term=True):
     if isinstance(prompt, list): 
         init_prompt = copy.copy(prompt)
         init_prompt.append({'type': 'env', 'content': ob})
@@ -393,7 +394,7 @@ atomic_exec_prompt +=  '\n\n'.join(atomic_examples[k] for k in atomic_examples.k
 atomic_exec_prompt += 'Here is an example of a complex goal.\n\n' + react_trajectory + '\n'
 atomic_exec_prompt += "Now here is a different goal. You can use these crafting commands to accomplish the goal. When you the desired item in your inventory, think: Task Completed! If you have tried your best but cannot proceed, think: task failed!\n" 
 
-def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], past_info_prop = '', depth = 1, num_runs = 0, verbose = False, comm_state = False, ttype=''):
+def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], past_info_prop = '', depth = 1, num_runs = 0, verbose = False, comm_state = False, ttype='', max_depth=1):
     plan_list = []
 
     info_prop = past_info_prop 
@@ -411,6 +412,7 @@ def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], pa
                 r, succ, term, completion, act_history, num = textcraft_run_adapt(prompt, to_print=False, ob=custom_ob + '\n' +  info_prop , env=env) #'\nResume from loaded checkpoint, last finished action:\n' +
         else:
             r, succ, term, completion, act_history, num = textcraft_run_adapt(prompt, to_print=False, ob=custom_ob, env=env)
+            # r, succ, term, env, trace, actions, depth, plans, num_runs
         if verbose: 
             print_completion(completion)
             print('Task ({}) Success: '.format(task), succ)
@@ -451,7 +453,7 @@ def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], pa
     plan_list.append(str(plan_steps['steps']) + ' at depth ' + str(depth) + ' and logic ' + str(plan_steps['logic']))
     for sub_task in plan_steps['steps']:
         if verbose: print('At subtask: ' + str(sub_task))
-        r, succ, term, env, completion, act_history, _, decomp_plans, num, info_prop = plan_and_run(commands, sub_task, idx, env, prompt, past_action_checkpoint=action_checkpoint, past_info_prop=info_prop, depth=depth, verbose=verbose, comm_state=comm_state, ttype=ttype) #Need to propogate info_prop here.
+        r, succ, term, env, completion, act_history, _, decomp_plans, num, info_prop = plan_and_run(commands, sub_task, idx, env, prompt, past_action_checkpoint=action_checkpoint, past_info_prop=info_prop, depth=depth, verbose=verbose, comm_state=comm_state, ttype=ttype, max_depth=max_depth) #Need to propogate info_prop here.
         plan_list.extend(decomp_plans)
         num_runs += num
         if plan_steps['logic'].lower() == 'or':
@@ -476,6 +478,16 @@ def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], pa
     return r, succ, term, env, running_completion, action_checkpoint, depth, plan_list, num_runs, info_prop\
 
 
+# ##############################3
+# Main PARAMETERS
+
+AGENT="ADAPT"
+max_depth=4 #for full ADAPT: max_depth =4; for REACT max_depth = 1
+# AGENT="REACT"
+num_games = 10 #originally 200
+verbose = True
+
+
 ## Running main loop for evaluation
 outputs = {}
 pbar = tqdm(list(range(num_games)))
@@ -483,18 +495,34 @@ rs = []; cnts = []
 rate = 0.0
 pbar.set_postfix({'success rate': rate})
 env = TextCraft()
-for idx in pbar:
-    obs, info = env.reset(seed=idx)
-    commands, task = obs.split('Goal: ')
-    trace = []
-    r, succ, term, env, trace, actions, depth, plans, num_runs, _ = plan_and_run(commands, task, idx, env, atomic_exec_prompt, past_action_checkpoint=[], comm_state=False, verbose=verbose)
-    rs.append(r)
-    cnts.append(1)
-    rate = sum(rs)/sum(cnts)
-    outputs[f'env_{idx}'] = {'problem': task, 'commands': commands, 'trace': trace, 'plans': plans, 'reward': r, 'runs': num_runs}
-    pbar.set_postfix({'rate': rate})
-outputs['overall'] = {'rate': sum(rs) / sum(cnts),  'count': cnts}
 
+if AGENT=="ADAPT":
+    for idx in pbar:
+        obs, info = env.reset(seed=idx)
+        commands, task = obs.split('Goal: ')
+        trace = []
+        r, succ, term, env, trace, actions, depth, plans, num_runs, _ = plan_and_run(commands, task, idx, env, atomic_exec_prompt, past_action_checkpoint=[], comm_state=False, verbose=verbose, max_depth=max_depth)
+        rs.append(r)
+        cnts.append(1)
+        rate = sum(rs)/sum(cnts)
+        outputs[f'env_{idx}'] = {'problem': task, 'commands': commands, 'trace': trace, 'plans': plans, 'reward': r, 'runs': num_runs}
+        pbar.set_postfix({'rate': rate})
+    outputs['overall'] = {'rate': sum(rs) / sum(cnts),  'count': cnts}
+# elif AGENT=="REACT":
+#     for idx in pbar:
+#         obs, info = env.reset(seed=idx)
+#         commands, task = obs.split('Goal: ')
+#         trace = []
+#         r, succ, term, env, trace, actions, depth, plans, num_runs, _ = plan_and_run(commands, task, idx, env, atomic_exec_prompt, past_action_checkpoint=[], comm_state=False, verbose=verbose, max_depth=max_depth)
+#         rs.append(r)
+#         cnts.append(1)
+#         rate = sum(rs)/sum(cnts)
+#         outputs[f'env_{idx}'] = {'problem': task, 'commands': commands, 'trace': trace, 'plans': plans, 'reward': r, 'runs': num_runs}
+#         pbar.set_postfix({'rate': rate})
+#     outputs['overall'] = {'rate': sum(rs) / sum(cnts),  'count': cnts}
+
+
+print(f"For model {LM}, received score: {outputs['overall']} ")
 dest_file = './results/textcraft/{}.json'.format(f'ADaPT_maxd{max_depth}_hybrid_exec_runs{max_runs}_test_num{num_games}')
 os.makedirs('/'.join(dest_file.split('/')[:-1]), exist_ok=True)
 t = open(dest_file, 'w+')
