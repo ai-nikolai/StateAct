@@ -22,8 +22,9 @@ openai.api_key = os.environ["OPENAI_API_KEY"]
 LM = 'gpt-3.5-turbo-instruct'
 max_runs = 40
 max_depth = 4
-num_games = 200
+num_games = 1 #originally 200
 verbose = False
+
 # env = TextCraft(minecraft_dir="../EnvironmentWebs/environments/textcraft/")
 env = TextCraft()
 environment_context = '''You can perform the following actions to interact with the environment: 
@@ -158,7 +159,7 @@ def fetch_args(args_lookup, logic_exp):
             out['steps'][s] = fetch_args(args_lookup, step)
     return out
 
-def textcraft_run(prompt, to_print=True, ob='', env=env, max_runs=max_runs, output_term=True):
+def textcraft_run_react(prompt, to_print=True, ob='', env=env, max_runs=max_runs, output_term=True):
     if isinstance(prompt, list): 
         init_prompt = copy.copy(prompt)
         init_prompt.append({'type': 'env', 'content': ob})
@@ -202,7 +203,7 @@ def textcraft_run(prompt, to_print=True, ob='', env=env, max_runs=max_runs, outp
     return 0, success, terminate,  prompt, action_history, num_runs
 
 
-def textcraft_run(prompt, to_print=True, ob='', env=env, max_runs=max_runs, output_term=True):
+def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=max_runs, output_term=True):
     if isinstance(prompt, list): 
         init_prompt = copy.copy(prompt)
         init_prompt.append({'type': 'env', 'content': ob})
@@ -404,12 +405,12 @@ def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], pa
         if len(info_prop):
             if verbose: print('Loading ...', info_prop)
             if LM in ["gpt-3.5-turbo", "gpt-4", "gpt-3.5-turbo-0301"]:
-                r, succ, term, completion, act_history, num = textcraft_run(prompt, to_print=False, ob=custom_ob + '\n' +  info_prop , env=env) #'\nResume from loaded checkpoint, last finished action:\n' +
+                r, succ, term, completion, act_history, num = textcraft_run_adapt(prompt, to_print=False, ob=custom_ob + '\n' +  info_prop , env=env) #'\nResume from loaded checkpoint, last finished action:\n' +
 
             else:
-                r, succ, term, completion, act_history, num = textcraft_run(prompt, to_print=False, ob=custom_ob + '\n' +  info_prop , env=env) #'\nResume from loaded checkpoint, last finished action:\n' +
+                r, succ, term, completion, act_history, num = textcraft_run_adapt(prompt, to_print=False, ob=custom_ob + '\n' +  info_prop , env=env) #'\nResume from loaded checkpoint, last finished action:\n' +
         else:
-            r, succ, term, completion, act_history, num = textcraft_run(prompt, to_print=False, ob=custom_ob, env=env)
+            r, succ, term, completion, act_history, num = textcraft_run_adapt(prompt, to_print=False, ob=custom_ob, env=env)
         if verbose: 
             print_completion(completion)
             print('Task ({}) Success: '.format(task), succ)
