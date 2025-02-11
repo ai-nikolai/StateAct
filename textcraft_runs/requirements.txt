@@ -1,4 +1,4 @@
-textcraft>=0.0.2
+textcraft>=0.0.3
 openai==0.28.0 #this code is still setup to work with an older version of openai
 pyyaml>=6.0.2
 pandas>=2.2.3

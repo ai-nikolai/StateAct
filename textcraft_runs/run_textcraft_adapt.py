@@ -17,7 +17,8 @@ import numpy as np
 # sys.path.append("../EnvironmentWebs/environments/")
 from textcraft import TextCraft
 
-openai.api_key = open('KEY.txt').readlines()[0].rstrip()
+openai.api_key = os.environ["OPENAI_API_KEY"]
+
 LM = 'gpt-3.5-turbo-instruct'
 max_runs = 40
 max_depth = 4
