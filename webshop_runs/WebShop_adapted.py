@@ -12,6 +12,7 @@ parser.add_argument("--num_envs", type=int, default=30)
 parser.add_argument("--max_model_len", type=int, default=6400)
 parser.add_argument("--quantization", type=int, default=0, help="Whether a quantized model is being loaded.")
 parser.add_argument("--gpus", type=int, default=1, help="Number of GPUs to use")
+parser.add_argument("--results_folder", type=str, default="results")
 
 parser.add_argument(
   "--agent", 
@@ -141,7 +142,6 @@ def local_llm_closure():
         model=MODEL,
         trust_remote_code=True,
         max_model_len=MAX_PROMPT_LENGTH,
-        tensor_parallel_size=1,
         gpu_memory_utilization=0.95,
         dtype="auto",
         tensor_parallel_size=args.gpus,
@@ -152,7 +152,6 @@ def local_llm_closure():
         model=MODEL,
         trust_remote_code=True,
         max_model_len=MAX_PROMPT_LENGTH,
-        tensor_parallel_size=1,
         gpu_memory_utilization=0.95,
         dtype="auto",
         quantization="bitsandbytes", 
@@ -1951,6 +1950,49 @@ if "ta" in experiments_to_run:
   print(steps14)
   print(sum(steps14)/len(steps14))
 
+  
+current_date = datetime.now().strftime("%Y-%m-%d")
+FOLDER = args.results_folder
+
+import string
+
+def clean_model_string(s):
+    # Convert to lowercase
+    s = s.lower()
+    # Replace / with _
+    s = s.replace('/', '_')
+    # Replace all punctuation (except _) with -
+    # Create a translation table that maps all punctuation to - except _
+    punct_to_dash = str.maketrans({p: '-' for p in string.punctuation if p != '_'})
+    s = s.translate(punct_to_dash)
+    return s
+
+clean_model_name = clean_model_string(MODEL)
+
+os.makedirs(FOLDER, exist_ok=True)
+
+# Check if file exists and create if not
+if not os.path.exists(os.path.join(FOLDER,'scores.csv')):
+    with open(os.path.join(FOLDER,'scores.csv'), 'w') as f:
+        f.write("agent,date,model,avg_score,success_rate,failure_rate\n")
+
+with open(os.path.join(FOLDER,'scores.csv'), 'a') as f:
+  if "act" in experiments_to_run:
+      f.write(f"act,{current_date},{clean_model_name},{sc0[0]},{sc0[1]},{sc0[2]}\n")
+  if "react" in experiments_to_run:
+      f.write(f"react,{current_date},{clean_model_name},{sc1[0]},{sc1[1]},{sc1[2]}\n")
+  if "stateact" in experiments_to_run:
+      f.write(f"stateact,{current_date},{clean_model_name},{sc6[0]},{sc6[1]},{sc6[2]}\n") 
+  if "stateact-no-thoughts" in experiments_to_run:
+      f.write(f"stateact-no-thoughts,{current_date},{clean_model_name},{sc9[0]},{sc9[1]},{sc9[2]}\n")
+  if "stateact-no-goal" in experiments_to_run:
+      f.write(f"stateact-no-goal,{current_date},{clean_model_name},{sc5[0]},{sc5[1]},{sc5[2]}\n")
+  if "stateact-no-state" in experiments_to_run:
+      f.write(f"stateact-no-state,{current_date},{clean_model_name},{sc11[0]},{sc11[1]},{sc11[2]}\n")
+  if "ssa" in experiments_to_run:
+      f.write(f"ssa,{current_date},{clean_model_name},{sc7[0]},{sc7[1]},{sc7[2]}\n")
+  if "stateact2" in experiments_to_run:
+      f.write(f"stateact2,{current_date},{clean_model_name},{sc13[0]},{sc13[1]},{sc13[2]}\n")
 
 # OUTPUTTING RESULTS TO A FILE
 from datetime import datetime
@@ -2068,22 +2110,8 @@ s={s}, N={N}
 ])
 
 
-import string
-
-def clean_model_string(s):
-    # Convert to lowercase
-    s = s.lower()
-    # Replace / with _
-    s = s.replace('/', '_')
-    # Replace all punctuation (except _) with -
-    # Create a translation table that maps all punctuation to - except _
-    punct_to_dash = str.maketrans({p: '-' for p in string.punctuation if p != '_'})
-    s = s.translate(punct_to_dash)
-    return s
-
-clean_model_name = clean_model_string(MODEL)
 file_name = f'webshop_results_{experiments_to_run[0]}_{clean_model_name}_s={s}_N={N}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt'
 
-with open(os.path.join("results",file_name), 'w') as f:
+with open(os.path.join(FOLDER,file_name), 'w') as f:
     f.write(output_str)
   
