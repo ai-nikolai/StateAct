@@ -14,7 +14,7 @@ import alfworld.agents.environment as environment
 from alfworld.agents.environment import get_environment
 # import alfworld.agents.modules.generic as generic
 
-from llamp.llms.human import Human
+from llamp.llms import Manual
 try:
     from llamp.llms.api import (
         AnthropicChat, AnthropicText,
@@ -64,7 +64,7 @@ def get_env_type(env_name):
     return env_type
 
 
-def transform_put_action(action):
+def transform_put_action(action, transform_to_move_syntax=True):
     """ Put action grammar correction. """
     put_regex_1 = """put(?:\s\w+)(?:\s\w+)?(?:\s\d+)\son(?:\s\w+)(?:\s\w+)?(?:\s\d+)"""
     put_regex_2 = """put(?:\s\w+)(?:\s\w+)?(?:\s\d+)\sin(?:\s\w+)(?:\s\w+)?(?:\s\d+)"""
@@ -80,6 +80,11 @@ def transform_put_action(action):
             if answer:
                 action = action.replace(" in "," in/on ")
                 correction_happened = True
+    
+    if transform_to_move_syntax:
+        action = action.replace("put","move")
+        action = action.replace("in/on", "to")
+        
     return action, correction_happened
 
 
@@ -667,9 +672,9 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model="", force_mode
         agent = VLLMChat(model=model, **kwargs)
 
 
-    elif llm_type=="Human":
-        model = "Human"
-        agent = HumanAgent()
+    elif llm_type.lower()=="manual":
+        model = "Manual"
+        agent = Manual()
 
     return agent, model
 
@@ -847,7 +852,8 @@ def build_arg_parser():
             "OpenAIChatTextSampling",
             "NvidiaChatText",
             "CerebrasChatText",
-            "VLLMChat"
+            "VLLMChat",
+            "Manual"
         ],
         help="The type of llamp.llms to use.",
     )
@@ -969,7 +975,7 @@ if __name__=="__main__":
 
 
     OUR_TEXT_PROMPTS = True if (AGENT_TYPE == "ours-text") or (AGENT_TYPE == "stateact") or (AGENT_TYPE == "act") else False
-    NOT_JSON_PROMPTS = REACT_PROMPT or AGENTBENCH_PROMPT or llm_type == "Human"
+    NOT_JSON_PROMPTS = REACT_PROMPT or AGENTBENCH_PROMPT or llm_type == "Manual"
 
     # NUM_EXAMPLES = args.num_prompts
     VERSION = args.agent_version
@@ -1377,7 +1383,10 @@ if __name__=="__main__":
 
                     if AGENT_TYPE =="ours-text":
                         actual_action, was_command = get_action_stringstate(action, key="action") #TODO
-
+                    
+                    elif llm_type.lower()=="manual":
+                        actual_action, was_command = action, True
+                
                 elif not NOT_JSON_PROMPTS: #i.e.: The JSON prompts
                     action = json_action_cleaning(action) #Done
 
@@ -1392,7 +1401,10 @@ if __name__=="__main__":
 
                     elif AGENT_TYPE == "ours":
                         actual_action, was_command, valid_json= get_action_jsonstate(action, key="action") #Done
-
+                    
+                    elif llm_type.lower()=="manual":
+                        actual_action, was_command = action, True
+                
                 elif NOT_JSON_PROMPTS:
                     action = nojson_action_cleaning(action) #Done
 
@@ -1411,6 +1423,9 @@ if __name__=="__main__":
                             if is_agentbench_thought(action): #Done
                                 observation = get_observation_agentbench_thought() #Done
                                 continue_flag = True
+                                    
+                    elif llm_type.lower()=="manual":
+                        actual_action, was_command = action, True
                 else:
                     raise Exception("What happened there?")
 
@@ -1448,7 +1463,9 @@ if __name__=="__main__":
                     num_no_json += 1
 
                 if CORRECTION:
-                    actual_action, correction_happened = transform_put_action(actual_action)
+                    # NOTE!!! Since PR 94 into alfworld put ... in/on ... to move ... to ...
+                    # https://github.com/alfworld/alfworld/pull/94
+                    actual_action, correction_happened = transform_put_action(actual_action, transform_to_move_syntax=True)
                     if not SILENT_MODE:
                         print(f"TRANSFORMED_ACTION:{actual_action}")
                     if correction_happened:
