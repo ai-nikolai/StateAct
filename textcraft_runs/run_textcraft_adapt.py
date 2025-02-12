@@ -579,7 +579,7 @@ def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], pa
 AGENT="ADAPT"
 max_depth=1 #for full ADAPT: max_depth =4; for REACT max_depth = 1
 # AGENT="REACT"
-num_games = 10 #originally 200
+num_games = args.num_games #originally 200
 verbose = True
 
 
