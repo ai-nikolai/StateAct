@@ -1957,7 +1957,7 @@ if "ta" in experiments_to_run:
   print(sum(steps14)/len(steps14))
 
   
-current_date = datetime.now().strftime("%Y-%m-%d")
+current_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 FOLDER = args.results_folder
 
 import string
