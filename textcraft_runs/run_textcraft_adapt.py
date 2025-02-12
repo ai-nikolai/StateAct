@@ -4,6 +4,8 @@ import sys
 import json
 import re
 from tqdm import tqdm
+from datetime import datetime
+
 from tenacity import (
     retry,
     stop_after_attempt, # type: ignore
@@ -180,13 +182,16 @@ def local_llm_closure():
             tensor_parallel_size=args.gpus,    
             # download_dir="/tmp/model_cache", 
         )
-    def llm_local(prompt, stop=["\n"], max_tokens=150, plan=False):
+    def llm_local(prompt, stop=None, max_tokens=150, plan=False):
+        if not stop:
+            if plan:
+                stop=['\n\n']
+            else:
+                stop=['\n']  
         if plan:
             max_tokens=800
-            stop=['\n\n']
         else:
             max_tokens=150
-            stop=['\n']  
         # Set sampling parameters
         sampling_params = SamplingParams(
             temperature=0,
@@ -317,10 +322,17 @@ def clean_action(action, prompt_type="react"):
     if prompt_type=="react":
         return action
     elif prompt_type=="stateact":
-        action_split = action.split('action: ')[1]
-        action_split = action_split.split('\n')[0]
+        # print(action)
+        # print(action.split("action: "))
+        try:
+            action_split = action.split('action: ')[1]
+            action_split = action_split.split('\n')[0]
+            return action_split
+        except Exception as e:
+            print("\n\n\n\n\n\n===================\nWe are receiving a fault in the model prediction.\n\n\n\n\n")
+            print(e)
+            return action
 
-        return action_split
 
 def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, output_term=True, prompt_type="react"):
     if isinstance(prompt, list): 
@@ -344,6 +356,7 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
             action = call_llm(init_prompt + prompt, stop=['\n']).strip()
         elif prompt_type =="stateact":
             action = call_llm(init_prompt + prompt, stop=['\n\n']).strip()
+            # print(f"=============\nWe received action: {action}")
         else:
             raise NotImplementedError(f"Prompt type {prompt_type} is not available.")
 
@@ -676,6 +689,8 @@ def plan_and_run(
         max_depth=1,
         prompt_type="react"
     ):
+    # print("===================")
+    # print(f"running prompt_type:{prompt_type}")
     plan_list = []
 
     info_prop = past_info_prop 
@@ -791,6 +806,9 @@ for idx in pbar:
     pbar.set_postfix({'rate': rate})
 outputs['overall'] = {'rate': sum(rs) / sum(cnts),  'count': cnts, "num_envs":sum(cnts), "depths":depths}
 
+final_rate = sum(rs) / sum(cnts)
+total_count = sum(cnts)
+average_depth = sum(depths) / sum(cnts)
 
 import string
 
@@ -810,10 +828,25 @@ clean_model_name = clean_model_string(LM)
 print(f"For model {LM}, received score: {outputs['overall']} ")
 dest_file = os.path.join(
     args.results_folder,
-    'textcraft'
-    '{}.json'.format(f'ADaPT_{clean_model_name}_maxd{max_depth}_max_run_{max_runs}_test_num{num_games}')
+    '{}.json'.format(f'ADaPT_{AGENT_TYPE}_{clean_model_name}_maxd{max_depth}_max_run_{max_runs}_test_num{num_games}')
+)
+print("===================FILE NAME")
+print(dest_file)
+dest_file_csv = os.path.join(
+    args.results_folder,
+    'results.csv'
 )
 os.makedirs('/'.join(dest_file.split('/')[:-1]), exist_ok=True)
 t = open(dest_file, 'w+')
 json.dump(outputs, t, indent=4)
 t.close()
+
+current_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+# Check if file exists and create if not
+if not os.path.exists(dest_file_csv):
+    with open(dest_file_csv, 'w') as f:
+        f.write("agent,date,model,rate,total_count,average_depth,max_depth\n")
+
+with open(dest_file_csv, 'a') as f:
+    f.write(f"{AGENT_TYPE},{current_date},{clean_model_name},{final_rate},{total_count},{average_depth},{max_depth}\n")
