@@ -1,6 +1,7 @@
 import os
 import sys
 import argparse
+from datetime import datetime
 
 
 parser = argparse.ArgumentParser()
@@ -1996,7 +1997,6 @@ with open(os.path.join(FOLDER,'scores.csv'), 'a') as f:
       f.write(f"stateact2,{current_date},{clean_model_name},{sc13[0]},{sc13[1]},{sc13[2]}\n")
 
 # OUTPUTTING RESULTS TO A FILE
-from datetime import datetime
 
 output_str = f'''=====================
 -FINAL RESULTS-{LLM_TYPE}-{MODEL}
