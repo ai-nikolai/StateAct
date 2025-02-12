@@ -1,6 +1,5 @@
 import json
 import os
-import openai
 import sys
 import json
 import re
@@ -17,10 +16,32 @@ import numpy as np
 # sys.path.append("../EnvironmentWebs/environments/")
 from textcraft import TextCraft
 
-openai.api_key = os.environ["OPENAI_API_KEY"]
+import argparse
 
 
-LM = 'gpt-3.5-turbo-instruct'
+parser = argparse.ArgumentParser()
+parser.add_argument("--llm_type", type=str, default="LOCAL", choices=["GPT", "LOCAL"])
+parser.add_argument("--model_local", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
+parser.add_argument("--num_games", type=int, default=30)
+parser.add_argument("--max_model_len", type=int, default=16000)
+parser.add_argument("--gpus", type=int, default=1, help="Number of GPUs to use")
+parser.add_argument("--results_folder", type=str, default="results")
+parser.add_argument("--quantization", type=int, default=0, help="Whether a quantized model is being loaded.")
+parser.add_argument("--max_depth", type=int, default=1, help="What depth to use for textcraft")
+
+args = parser.parse_args()
+# LLM_TYPE="GPT"
+# LLM_TYPE="LOCAL"
+LLM_TYPE=args.llm_type
+
+if LLM_TYPE=="GPT":
+    import openai
+    openai.api_key = os.environ["OPENAI_API_KEY"]
+    LM = 'gpt-3.5-turbo-instruct'
+
+elif LLM_TYPE=="LOCAL":
+    LM=args.model_local
+    MAX_PROMPT_LENGTH=args.max_model_len
 max_runs = 40
 # max_depth = 4
 # num_games = 200 #originally 200
@@ -36,12 +57,22 @@ Here [count] is a place holder for number of object, and [item] is placeholder f
 
 '''
 
-@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(15))
-def llm(prompt, stop=["\n"], max_tokens=150):
+# @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(15))
+def llm(prompt, stop=["\n"], max_tokens=150, plan=False):
+    if plan:
+        max_tokens=800
+        stop=['\n\n']
+    else:
+        max_tokens=150
+        stop=['\n']
     if 'davinci' in LM or 'instruct' in LM:
+        if plan:
+            prompt= 'You are an helpful assistant helping me play a simple version of Minecraft. ' + prompt,
+        else:
+            prompt='You are a helpful assistant playing Minecraft\n' + environment_context + prompt,
         response = openai.Completion.create(
         model=LM,
-        prompt='You are a helpful assistant playing Minecraft\n' + environment_context + prompt,
+        prompt=prompt,
         temperature=0,
         max_tokens=max_tokens,
         top_p=1,
@@ -51,12 +82,19 @@ def llm(prompt, stop=["\n"], max_tokens=150):
         )
         return response["choices"][0]["text"]
     elif 'gpt-3.5-turbo' in LM or 'gpt-4' in LM:
+        if plan:
+            messages=[
+                {"role": "system", "content": 'You are an helpful assistant helping me play a simple version of Minecraft.'},
+                {"role": "user", "content": prompt}
+            ],
+        else:
+            messages=[
+            {"role": "system", "content": 'You are a helpful assistant playing Minecraft.' + environment_context},
+            {"role": "user", "content": prompt}
+            ],
         response = openai.ChatCompletion.create(
         model=LM,
-        messages=[
-          {"role": "system", "content": 'You are a helpful assistant playing Minecraft.' + environment_context},
-          {"role": "user", "content": prompt}
-	      ],
+        messages=messages,
         temperature=0,
         max_tokens=max_tokens,
         top_p=1,
@@ -69,43 +107,100 @@ def llm(prompt, stop=["\n"], max_tokens=150):
         completions = [completion.content for completion in completion_objs]
         return completions[0]
 
-@retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(25))
-def plan_llm(prompt, stop=["\n\n"]):
-    if 'davinci' in LM or 'turbo-instruct' in LM:
-      if isinstance(prompt, list): prompt = prompt[0]
-      response = openai.Completion.create(
-        model=LM,
-        prompt= 'You are an helpful assistant helping me play a simple version of Minecraft. ' + prompt,
-        temperature=0,
-        max_tokens=800,
-        top_p=1,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        # stop=stop
-      )
-      return response["choices"][0]["text"]
-    elif 'gpt-3.5-turbo' in LM or 'gpt-4' in LM:
-      if isinstance(prompt, list): prompt = prompt[0]
-      init_prmpt = 'You are an helpful assistant helping me play a simple version of Minecraft.'
-      response = openai.ChatCompletion.create(
-      model=LM,
-      messages=[
-        {"role": "system", "content": init_prmpt},
-        {"role": "user", "content": prompt}
-      ],
-      temperature=0,
-      max_tokens=800,
-      top_p=1,
-      frequency_penalty=0.0,
-      presence_penalty=0.0,
-      # stop=stop
-      )
-      choices = response["choices"]
-      completion_objs = [choice.message for choice in choices]
-      completions = [completion.content for completion in completion_objs]
-      return completions[0]
+# @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(25))
+# def plan_llm(prompt, stop=["\n\n"]):
+#     if 'davinci' in LM or 'turbo-instruct' in LM:
+#       if isinstance(prompt, list): prompt = prompt[0]
+#       response = openai.Completion.create(
+#         model=LM,
+#         prompt= 'You are an helpful assistant helping me play a simple version of Minecraft. ' + prompt,
+#         temperature=0,
+#         max_tokens=800,
+#         top_p=1,
+#         frequency_penalty=0.0,
+#         presence_penalty=0.0,
+#         # stop=stop
+#       )
+#       return response["choices"][0]["text"]
+#     elif 'gpt-3.5-turbo' in LM or 'gpt-4' in LM:
+#       if isinstance(prompt, list): prompt = prompt[0]
+#       init_prmpt = 'You are an helpful assistant helping me play a simple version of Minecraft.'
+#       response = openai.ChatCompletion.create(
+#       model=LM,
+#       messages=[
+#         {"role": "system", "content": init_prmpt},
+#         {"role": "user", "content": prompt}
+#       ],
+#       temperature=0,
+#       max_tokens=800,
+#       top_p=1,
+#       frequency_penalty=0.0,
+#       presence_penalty=0.0,
+#       # stop=stop
+#       )
+#       choices = response["choices"]
+#       completion_objs = [choice.message for choice in choices]
+#       completions = [completion.content for completion in completion_objs]
+#       return completions[0]
 
+
+def local_llm_closure():
+    from vllm import LLM, SamplingParams
+    QUANTIZATION=bool(args.quantization)
+    # Initialize model with HF token authentication
+    if not QUANTIZATION:
+        llm = LLM(
+            model=LM,
+            trust_remote_code=True,
+            max_model_len=MAX_PROMPT_LENGTH,
+            gpu_memory_utilization=0.90,
+            dtype="auto",
+            tensor_parallel_size=args.gpus,
+            # download_dir="/tmp/model_cache", 
+        )
+    else:
+        llm = LLM(
+            model=LM,
+            trust_remote_code=True,
+            max_model_len=MAX_PROMPT_LENGTH,
+            gpu_memory_utilization=0.95,
+            dtype="auto",
+            quantization="bitsandbytes", 
+            load_format="bitsandbytes",
+            tensor_parallel_size=args.gpus,    
+            # download_dir="/tmp/model_cache", 
+        )
+    def llm_local(prompt, stop=["\n"], max_tokens=150, plan=False):
+        if plan:
+            max_tokens=800
+            stop=['\n\n']
+        else:
+            max_tokens=150
+            stop=['\n']  
+        # Set sampling parameters
+        sampling_params = SamplingParams(
+            temperature=0,
+            max_tokens=max_tokens,
+            stop=stop
+        )
+        
+        # Generate completion
+        outputs = llm.generate(prompt, sampling_params)
+        return outputs[0].outputs[0].text
     
+    return llm_local
+
+
+if LLM_TYPE=="GPT":
+    # plan_llm = plan_llm
+    # llm = llm
+    call_llm = llm
+elif LLM_TYPE=="LOCAL":
+    # plan_llm = local_llm_closure()
+    # llm = plan_llm
+    call_llm = local_llm_closure()
+
+
 def parse_expression(expression):
     stack = []
     current = {}
@@ -178,7 +273,7 @@ def textcraft_run_react(prompt, to_print=True, ob='', env=env, max_runs=40, outp
         sys.stdout.flush()
     for i in range(1, max_runs):
         
-        action = llm(init_prompt + prompt, stop=['\n']).strip()
+        action = call_llm(init_prompt + prompt, stop=['\n']).strip()
         num_runs += 1
         action = action.lstrip('> ')
         
@@ -223,7 +318,7 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
         sys.stdout.flush()
     for i in range(1, max_runs):
         
-        action = llm(init_prompt + prompt, stop=['\n']).strip()
+        action = call_llm(init_prompt + prompt, stop=['\n']).strip()
 
         num_runs += 1
         action = action.lstrip('> ')
@@ -428,7 +523,7 @@ def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], pa
             return r, succ, term, env, running_completion, action_checkpoint, depth, plan_list, num_runs, info_prop
         
         
-        plan = plan_llm(plan_prompt + '\n' + custom_ob)
+        plan = call_llm(plan_prompt + '\n' + custom_ob, plan=True)
         if verbose: 
             print('-----')
             print_completion(plan)
@@ -482,7 +577,7 @@ def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], pa
 # Main PARAMETERS
 
 AGENT="ADAPT"
-max_depth=4 #for full ADAPT: max_depth =4; for REACT max_depth = 1
+max_depth=1 #for full ADAPT: max_depth =4; for REACT max_depth = 1
 # AGENT="REACT"
 num_games = 10 #originally 200
 verbose = True
@@ -523,7 +618,11 @@ if AGENT=="ADAPT":
 
 
 print(f"For model {LM}, received score: {outputs['overall']} ")
-dest_file = './results/textcraft/{}.json'.format(f'ADaPT_maxd{max_depth}_hybrid_exec_runs{max_runs}_test_num{num_games}')
+dest_file = os.path.join(
+    args.results_folder,
+    'textcraft'
+    '{}.json'.format(f'ADaPT_maxd{max_depth}_hybrid_exec_runs{max_runs}_test_num{num_games}')
+)
 os.makedirs('/'.join(dest_file.split('/')[:-1]), exist_ok=True)
 t = open(dest_file, 'w+')
 json.dump(outputs, t, indent=4)
