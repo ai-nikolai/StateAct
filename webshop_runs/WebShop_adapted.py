@@ -14,6 +14,7 @@ parser.add_argument("--max_model_len", type=int, default=6400)
 parser.add_argument("--quantization", type=int, default=0, help="Whether a quantized model is being loaded.")
 parser.add_argument("--gpus", type=int, default=1, help="Number of GPUs to use")
 parser.add_argument("--results_folder", type=str, default="results")
+parser.add_argument("--seed", type=int, default=-1, help="Default seed to use for vllm, if -1 then a None / random seed will be chosen.")
 
 parser.add_argument(
   "--agent", 
@@ -37,7 +38,9 @@ LLM_TYPE = args.llm_type
 MAX_PROMPT_LENGTH=min(args.max_model_len,6400)
 
 
-
+# SEED = random.randint(0, 2**32 - 1) if args.seed == -1 else args.seed
+SEED = None if args.seed == -1 else args.seed
+print(f"The used seed: {SEED}")
 
 if LLM_TYPE=="NORMAL":
   print("RUNNING OPENAI WITH TEXT MODEL")
@@ -165,7 +168,8 @@ def local_llm_closure():
     sampling_params = SamplingParams(
         temperature=0,
         max_tokens=500,
-        stop=stop
+        stop=stop,
+        seed=SEED
     )
     
     # Generate completion

@@ -897,6 +897,7 @@ def build_arg_parser():
     parser.add_argument("--max_model_len", type=int, help="Max Model Len")
     parser.add_argument("--quantization", type=int, default=0, help="Whether a quantized model is being loaded.")
     parser.add_argument("--gpus", type=int, default=1, help="Number of GPUs to use")
+    parser.add_argument("--seed", type=int, default=-1, help="Default seed to use for vllm, if -1 then a None / random seed will be chosen.")
 
     # 
     parser.add_argument("--silent", action="store_true", default=False, help="Whether to suppress messages during the game loop.")
@@ -934,6 +935,8 @@ if __name__=="__main__":
     parser = build_arg_parser()
     args = parser.parse_args()
 
+    SEED = None if args.seed == -1 else args.seed
+    print(f"The used seed: {SEED}") 
 
     #CHANGE THIS ONE
     if not TEST_ENV:
@@ -1128,7 +1131,8 @@ if __name__=="__main__":
         force_model=args.force_model,
         max_model_len=args.max_model_len,
         quantization=bool(args.quantization),
-        tensor_parallel_size=args.gpus
+        tensor_parallel_size=args.gpus,
+        seed=SEED
     )
     
     agent.update_save_path(SAVE_FOLDER)

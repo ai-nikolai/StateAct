@@ -16,6 +16,7 @@ import numpy as np
 # sys.path.append("../EnvironmentWebs/environments/")
 from textcraft import TextCraft
 
+import random #for the seed
 import argparse
 
 
@@ -28,11 +29,17 @@ parser.add_argument("--gpus", type=int, default=1, help="Number of GPUs to use")
 parser.add_argument("--results_folder", type=str, default="results")
 parser.add_argument("--quantization", type=int, default=0, help="Whether a quantized model is being loaded.")
 parser.add_argument("--max_depth", type=int, default=1, help="What depth to use for textcraft")
+parser.add_argument("--seed", type=int, default=-1, help="Default seed to use for vllm, if -1 then a None / random seed will be chosen.")
 
 args = parser.parse_args()
 # LLM_TYPE="GPT"
 # LLM_TYPE="LOCAL"
 LLM_TYPE=args.llm_type
+
+
+# SEED = random.randint(0, 2**32 - 1) if args.seed == -1 else args.seed
+SEED = None if args.seed == -1 else args.seed
+print(f"The used seed: {SEED}")
 
 if LLM_TYPE=="GPT":
     import openai
@@ -181,7 +188,8 @@ def local_llm_closure():
         sampling_params = SamplingParams(
             temperature=0,
             max_tokens=max_tokens,
-            stop=stop
+            stop=stop,
+            seed=SEED #TODO make adaptable between runs
         )
         
         # Generate completion
@@ -577,7 +585,7 @@ def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], pa
 # Main PARAMETERS
 
 AGENT="ADAPT"
-max_depth=1 #for full ADAPT: max_depth =4; for REACT max_depth = 1
+max_depth=args.max_depth #for full ADAPT: max_depth =4; for REACT max_depth = 1
 # AGENT="REACT"
 num_games = args.num_games #originally 200
 verbose = True
@@ -587,6 +595,7 @@ verbose = True
 outputs = {}
 pbar = tqdm(list(range(num_games)))
 rs = []; cnts = []
+depths = []
 rate = 0.0
 pbar.set_postfix({'success rate': rate})
 env = TextCraft()
@@ -599,10 +608,11 @@ if AGENT=="ADAPT":
         r, succ, term, env, trace, actions, depth, plans, num_runs, _ = plan_and_run(commands, task, idx, env, atomic_exec_prompt, past_action_checkpoint=[], comm_state=False, verbose=verbose, max_depth=max_depth)
         rs.append(r)
         cnts.append(1)
+        depths.append(depth)
         rate = sum(rs)/sum(cnts)
         outputs[f'env_{idx}'] = {'problem': task, 'commands': commands, 'trace': trace, 'plans': plans, 'reward': r, 'runs': num_runs}
         pbar.set_postfix({'rate': rate})
-    outputs['overall'] = {'rate': sum(rs) / sum(cnts),  'count': cnts}
+    outputs['overall'] = {'rate': sum(rs) / sum(cnts),  'count': cnts, "num_envs":sum(cnts), "depths":depths}
 # elif AGENT=="REACT":
 #     for idx in pbar:
 #         obs, info = env.reset(seed=idx)
@@ -617,11 +627,26 @@ if AGENT=="ADAPT":
 #     outputs['overall'] = {'rate': sum(rs) / sum(cnts),  'count': cnts}
 
 
+import string
+
+def clean_model_string(s):
+    # Convert to lowercase
+    s = s.lower()
+    # Replace / with _
+    s = s.replace('/', '_')
+    # Replace all punctuation (except _) with -
+    # Create a translation table that maps all punctuation to - except _
+    punct_to_dash = str.maketrans({p: '-' for p in string.punctuation if p != '_'})
+    s = s.translate(punct_to_dash)
+    return s
+
+clean_model_name = clean_model_string(LM)
+
 print(f"For model {LM}, received score: {outputs['overall']} ")
 dest_file = os.path.join(
     args.results_folder,
     'textcraft'
-    '{}.json'.format(f'ADaPT_maxd{max_depth}_hybrid_exec_runs{max_runs}_test_num{num_games}')
+    '{}.json'.format(f'ADaPT_{clean_model_name}_maxd{max_depth}_max_run_{max_runs}_test_num{num_games}')
 )
 os.makedirs('/'.join(dest_file.split('/')[:-1]), exist_ok=True)
 t = open(dest_file, 'w+')
