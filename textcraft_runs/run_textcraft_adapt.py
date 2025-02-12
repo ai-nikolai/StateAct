@@ -30,6 +30,7 @@ parser.add_argument("--results_folder", type=str, default="results")
 parser.add_argument("--quantization", type=int, default=0, help="Whether a quantized model is being loaded.")
 parser.add_argument("--max_depth", type=int, default=1, help="What depth to use for textcraft")
 parser.add_argument("--seed", type=int, default=-1, help="Default seed to use for vllm, if -1 then a None / random seed will be chosen.")
+parser.add_argument("--agent_type", type=str, default="react", choices=["react", "stateact"])
 
 args = parser.parse_args()
 # LLM_TYPE="GPT"
@@ -40,6 +41,8 @@ LLM_TYPE=args.llm_type
 # SEED = random.randint(0, 2**32 - 1) if args.seed == -1 else args.seed
 SEED = None if args.seed == -1 else args.seed
 print(f"The used seed: {SEED}")
+
+AGENT_TYPE = args.agent_type
 
 if LLM_TYPE=="GPT":
     import openai
@@ -263,51 +266,63 @@ def fetch_args(args_lookup, logic_exp):
             out['steps'][s] = fetch_args(args_lookup, step)
     return out
 
-def textcraft_run_react(prompt, to_print=True, ob='', env=env, max_runs=40, output_term=True):
-    if isinstance(prompt, list): 
-        init_prompt = copy.copy(prompt)
-        init_prompt.append({'type': 'env', 'content': ob})
-    else:
-        init_prompt = prompt + '\n' + ob + '\n>'
-    prompt = ''
-    action_history = []
-    max_patience = 5
-    pat_ctr = 0
-    success = False
-    terminate = False
-    num_runs = 0
-    if to_print:
-        print(ob)
-        sys.stdout.flush()
-    for i in range(1, max_runs):
+# def textcraft_run_react(prompt, to_print=True, ob='', env=env, max_runs=40, output_term=True):
+#     if isinstance(prompt, list): 
+#         init_prompt = copy.copy(prompt)
+#         init_prompt.append({'type': 'env', 'content': ob})
+#     else:
+#         init_prompt = prompt + '\n' + ob + '\n>'
+#     prompt = ''
+#     action_history = []
+#     max_patience = 5
+#     pat_ctr = 0
+#     success = False
+#     terminate = False
+#     num_runs = 0
+#     if to_print:
+#         print(ob)
+#         sys.stdout.flush()
+#     for i in range(1, max_runs):
         
-        action = call_llm(init_prompt + prompt, stop=['\n']).strip()
-        num_runs += 1
-        action = action.lstrip('> ')
+#         action = call_llm(init_prompt + prompt, stop=['\n']).strip()
+#         num_runs += 1
+#         action = action.lstrip('> ')
         
-        observation, reward, done, _,  info = env.step('> ' + action)
+#         observation, reward, done, _,  info = env.step('> ' + action)
 
-        if action.startswith('think:'):
-            observation = 'OK.'
-            if 'task completed' in action.lower(): done = True; success = True
-            if 'task failed' in action.lower(): done = True; success = False
-        else: action_history.append(action)
-        if observation.startswith("Could not") or observation == "OK.": 
-            pat_ctr += 1
-            if pat_ctr == max_patience: terminate = True; break
-        else: pat_ctr = 0
-        if to_print:
-            print(f'Act {i}: {action}\nObs {i}: {observation}')
-            sys.stdout.flush()
-        prompt += f' {action}\n{observation}\n>'
-        if reward: success = True; terminate = False
-        if done:
-            return reward, success, terminate, prompt, action_history, num_runs
-    if not done: success = False; terminate = True
-    return 0, success, terminate,  prompt, action_history, num_runs
+#         if action.startswith('think:'):
+#             observation = 'OK.'
+#             if 'task completed' in action.lower(): done = True; success = True
+#             if 'task failed' in action.lower(): done = True; success = False
+#         else: action_history.append(action)
+#         if observation.startswith("Could not") or observation == "OK.": 
+#             pat_ctr += 1
+#             if pat_ctr == max_patience: terminate = True; break
+#         else: pat_ctr = 0
+#         if to_print:
+#             print(f'Act {i}: {action}\nObs {i}: {observation}')
+#             sys.stdout.flush()
+#         prompt += f' {action}\n{observation}\n>'
+#         if reward: success = True; terminate = False
+#         if done:
+#             return reward, success, terminate, prompt, action_history, num_runs
+#     if not done: success = False; terminate = True
+#     return 0, success, terminate,  prompt, action_history, num_runs
 
 
-def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, output_term=True):
+def clean_action(action, prompt_type="react"):
+    """
+    If the prompt is stateact-like.
+    """
+    if prompt_type=="react":
+        return action
+    elif prompt_type=="stateact":
+        action_split = action.split('action: ')[1]
+        action_split = action_split.split('\n')[0]
+
+        return action_split
+
+def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, output_term=True, prompt_type="react"):
     if isinstance(prompt, list): 
         init_prompt = copy.copy(prompt)
         init_prompt.append({'type': 'env', 'content': ob})
@@ -325,8 +340,12 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
         print(ob)
         sys.stdout.flush()
     for i in range(1, max_runs):
-        
-        action = call_llm(init_prompt + prompt, stop=['\n']).strip()
+        if prompt_type=="react":
+            action = call_llm(init_prompt + prompt, stop=['\n']).strip()
+        elif prompt_type =="stateact":
+            action = call_llm(init_prompt + prompt, stop=['\n\n']).strip()
+        else:
+            raise NotImplementedError(f"Prompt type {prompt_type} is not available.")
 
         num_runs += 1
         action = action.lstrip('> ')
@@ -339,7 +358,9 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
             observation = 'OK.'
             if 'task completed' in action.lower(): done = True; success = True
             if 'task failed' in action.lower(): done = True; success = False
-        else: action_history.append(action)
+        else: 
+            action = clean_action(action, prompt_type=prompt_type)
+            action_history.append(action)
         if "Could not" in observation or observation == "OK.": 
             pat_ctr += 1
             if pat_ctr == max_patience: terminate = True; break
@@ -398,6 +419,139 @@ Here is a different goal with different craft commands. Your task is to come up 
 - Also, you can use ONLY 1 crafting command in your plan.
 '''
 
+atomic_examples_stateact = {
+'craft_with_ingredients':'''Crafting commands:
+craft 3 dark oak sign using 6 dark oak planks, 1 stick
+craft 4 dark oak planks using 1 dark oak log
+craft 1 stick using 1 planks
+craft 4 stick using 2 bamboo
+craft 4 oak planks using 1 oak log
+craft 1 dark oak fence using 2 stick, 4 dark oak planks
+craft 1 warped stairs using 6 warped planks
+craft 3 oak sign using 6 oak planks, 1 stick
+
+Goal: craft dark oak sign
+
+> goal: craft dark oak sign 
+inventory: Unknown
+think: I should check if I can fetch dark oak sign directly from the environment or the inventory.
+action: inventory
+
+Inventory: [stick] (1) [dark oak planks] (6)
+
+> goal: craft dark oak sign 
+inventory: 1 stick, 6 dark oak planks 
+think: None
+action: get dark oak sign
+
+Could not find dark oak sign
+
+> goal: craft dark oak sign 
+inventory: 1 stick, 6 dark oak planks 
+think: I cannot get dark oak sign directly, I need to craft it. From the crafting commands, I can use: craft dark oak sign using 6 dark oak planks, 1 stick. Ingredients needed: 6 dark oak planks, 1 stick. Input assumption: I have all the neccessary ingredients in my inventory. Let me verify this first.
+action: inventory
+
+Inventory: [stick] (1) [dark oak planks] (6)
+
+> goal: craft dark oak sign 
+inventory: 1 stick, 6 dark oak planks  
+think: I found my ingredients: 6 dark oak planks, 1 stick in my inventory. My assumption is true, I can proceed. I will use the crafting command: craft dark oak sign using 6 dark oak planks
+action: craft 3 dark oak sign using 6 dark oak planks, 1 stick
+
+Crafted 3 minecraft:dark_oak_sign
+
+> goal: craft dark oak sign 
+inventory: 3 dark oak sign
+think: None
+action: inventory 
+
+Inventory: [dark oak sign] (3)
+
+> goal: craft dark oak sign 
+inventory: 3 dark oak sign
+think: I now have dark oak sign in my inventory. Task Completed!
+action: None
+''', 
+'craft_with_ingredients_gen':'''Goal: fetch 2 dark oak logs.
+
+> goal: fetch 2 dark oak logs
+inventory: unknown
+think: I should check my inventory first, to see if I already have dark oak sign. Otherwise, I will directly try to get it from the environment.
+action: inventory
+
+Inventory: [stick] (1)
+
+> goal: fetch 2 dark oak logs
+inventory: 1 stick
+think: None
+action: get 2 dark oak logs.
+
+Got 2 dark oak logs
+
+> goal: fetch 2 dark oak logs
+inventory: 1 stick, 2 dark oak log
+think: None
+action: inventory
+
+Inventory: [dark oak log] (2) [stick] (1)
+
+> goal: fetch 2 dark oak logs
+inventory: 1 stick, 2 dark oak log
+think: I have 2 dark oak logs in my inventory. Task Completed!
+action: None
+'''
+}
+
+stateact_trajectory = '''Goal: craft 2 oak planks
+
+> goal: craft 2 oak planks
+inventory: unknown
+think: I should check if I can fetch dark oak sign directly from the environment or the inventory.
+action: intentory
+
+Inventory: [stick] (1) 
+
+> goal: craft 2 oak planks
+inventory: 1 stick
+think: None
+action: get 2 oak planks
+
+Could not find 2 oak planks
+
+> goal: craft 2 oak planks
+inventory: 1 stick
+think: I cannot get oak planks directly, I need to craft it. From the crafting commands, I can use: craft 4 oak planks using 1 oak log. Ingredients needed: 1 dark oak log. Input assumption: I have the ingredients needed in my inventory. Let me verify this first.
+action: inventory
+
+Inventory: [stick] (1) 
+
+> goal: craft 2 oak planks
+inventory: 1 stick
+think: My assumption is false. I need to get the ingredients: 1 oak log first.
+action: get 1 oak log
+
+Got 1 oak log
+
+> goal: craft 2 oak planks
+inventory: 1 stick, 1 oak log
+think: None
+action: craft 4 oak planks using 1 oak log
+
+Crafted 4 minecraft:oak_planks
+
+> goal: craft 2 oak planks
+inventory: 1 stick, 4 oak planks
+think: None
+action: inventory
+
+Inventory: [stick] (1) [oak_planks] (4)
+
+> goal: craft 2 oak planks
+inventory: 1 stick, 4 oak planks
+think: I now have 2 oak planks in my inventory. Task Completed!
+acition: None
+'''
+
 atomic_examples = {
 'craft_with_ingredients':'''Crafting commands:
 craft 3 dark oak sign using 6 dark oak planks, 1 stick
@@ -415,7 +569,7 @@ Goal: craft dark oak sign
 OK.
 
 > inventory: 
-Inventory: [stick] (1) [dark oak planks] (8)
+Inventory: [stick] (1) [dark oak planks] (6)
 
 > get dark oak sign
 Could not find dark oak sign
@@ -424,16 +578,16 @@ Could not find dark oak sign
 OK.
 
 > inventory
-Inventory: [stick] (1) [dark oak planks] (8)
+Inventory: [stick] (1) [dark oak planks] (6)
 
 > think: I found my ingredients: 6 dark oak planks, 1 stick in my inventory. My assumption is true, I can proceed. I will use the crafting command: craft dark oak sign using 6 dark oak planks
 OK.
 
-> craft 1 dark oak sign using 6 dark oak planks, 1 stick
-Crafted 1 minecraft:dark_oak_sign
+> craft 3 dark oak sign using 6 dark oak planks, 1 stick
+Crafted 3 minecraft:dark_oak_sign
 
 > inventory 
-Inventory: [dark oak sign] (1)
+Inventory: [dark oak sign] (3)
 
 > think: I now have dark oak sign in my inventory. Task Completed!
 OK.
@@ -490,14 +644,38 @@ Inventory: [stick] (1) [oak_planks] (4)
 OK.
 '''
 
-atomic_exec_prompt = '''You are given few useful crafting recipes to craft items in Minecraft. Crafting commands are of the format "craft [target object] using [input ingredients]". You can either "fetch" an object (ingredients) from the inventory or the environment or "craft" (target) using any of the crafting commands. You can use ONLY these crafting commands provided, do not use your own crafting commands. However, if the crafting command uses a generic ingredient like "planks", you can use special types of the same ingredient e.g. "dark oak planks" in the command instead. For any other natural language or thoughts, use prefix 'think: '.
-
-Here is a demo of how to fetch and craft objects.\n\n'''
-atomic_exec_prompt +=  '\n\n'.join(atomic_examples[k] for k in atomic_examples.keys()) + '\n'
-atomic_exec_prompt += 'Here is an example of a complex goal.\n\n' + react_trajectory + '\n'
+atomic_exec_prompt = '''You are given few useful crafting recipes to craft items in Minecraft. Crafting commands are of the format "craft [target object] using [input ingredients]". You can either "fetch" an object (ingredients) from the inventory or the environment or "craft" (target) using any of the crafting commands. You can use ONLY these crafting commands provided, do not use your own crafting commands. However, if the crafting command uses a generic ingredient like "planks", you can use special types of the same ingredient e.g. "dark oak planks" in the command instead. '''
+# REACT PART
+if AGENT_TYPE=="react":
+    atomic_exec_prompt+="""For any other natural language or thoughts, use prefix 'think: '."""
+    atomic_exec_prompt+="""\n\nHere is a demo of how to fetch and craft objects.\n\n"""
+    atomic_exec_prompt +=  '\n\n'.join(atomic_examples[k] for k in atomic_examples.keys()) + '\n'
+    # Pure React
+    atomic_exec_prompt += 'Here is an example of a complex goal.\n\n' + react_trajectory + '\n'
+elif AGENT_TYPE=="stateact":
+    # STATEACT ALTERNATIVE
+    atomic_exec_prompt+="""\n\nHere is a demo of how to fetch and craft objects.\n\n"""
+    atomic_exec_prompt +=  '\n\n'.join(atomic_examples_stateact[k] for k in atomic_examples_stateact.keys()) + '\n'
+    # Pure Stateact
+    atomic_exec_prompt += 'Here is an example of a complex goal.\n\n' + stateact_trajectory + '\n'
 atomic_exec_prompt += "Now here is a different goal. You can use these crafting commands to accomplish the goal. When you the desired item in your inventory, think: Task Completed! If you have tried your best but cannot proceed, think: task failed!\n" 
 
-def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], past_info_prop = '', depth = 1, num_runs = 0, verbose = False, comm_state = False, ttype='', max_depth=1):
+def plan_and_run(
+        commands, 
+        task, 
+        idx, 
+        env, 
+        prompt, 
+        past_action_checkpoint=[], 
+        past_info_prop = '', 
+        depth = 1, 
+        num_runs = 0, 
+        verbose = False, 
+        comm_state = False, 
+        ttype='', 
+        max_depth=1,
+        prompt_type="react"
+    ):
     plan_list = []
 
     info_prop = past_info_prop 
@@ -509,12 +687,12 @@ def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], pa
         if len(info_prop):
             if verbose: print('Loading ...', info_prop)
             if LM in ["gpt-3.5-turbo", "gpt-4", "gpt-3.5-turbo-0301"]:
-                r, succ, term, completion, act_history, num = textcraft_run_adapt(prompt, to_print=False, ob=custom_ob + '\n' +  info_prop , env=env) #'\nResume from loaded checkpoint, last finished action:\n' +
+                r, succ, term, completion, act_history, num = textcraft_run_adapt(prompt, to_print=False, ob=custom_ob + '\n' +  info_prop , env=env, prompt_type=prompt_type) #'\nResume from loaded checkpoint, last finished action:\n' +
 
             else:
-                r, succ, term, completion, act_history, num = textcraft_run_adapt(prompt, to_print=False, ob=custom_ob + '\n' +  info_prop , env=env) #'\nResume from loaded checkpoint, last finished action:\n' +
+                r, succ, term, completion, act_history, num = textcraft_run_adapt(prompt, to_print=False, ob=custom_ob + '\n' +  info_prop , env=env, prompt_type=prompt_type) #'\nResume from loaded checkpoint, last finished action:\n' +
         else:
-            r, succ, term, completion, act_history, num = textcraft_run_adapt(prompt, to_print=False, ob=custom_ob, env=env)
+            r, succ, term, completion, act_history, num = textcraft_run_adapt(prompt, to_print=False, ob=custom_ob, env=env, prompt_type=prompt_type)
             # r, succ, term, env, trace, actions, depth, plans, num_runs
         if verbose: 
             print_completion(completion)
@@ -556,7 +734,7 @@ def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], pa
     plan_list.append(str(plan_steps['steps']) + ' at depth ' + str(depth) + ' and logic ' + str(plan_steps['logic']))
     for sub_task in plan_steps['steps']:
         if verbose: print('At subtask: ' + str(sub_task))
-        r, succ, term, env, completion, act_history, _, decomp_plans, num, info_prop = plan_and_run(commands, sub_task, idx, env, prompt, past_action_checkpoint=action_checkpoint, past_info_prop=info_prop, depth=depth, verbose=verbose, comm_state=comm_state, ttype=ttype, max_depth=max_depth) #Need to propogate info_prop here.
+        r, succ, term, env, completion, act_history, _, decomp_plans, num, info_prop = plan_and_run(commands, sub_task, idx, env, prompt, past_action_checkpoint=action_checkpoint, past_info_prop=info_prop, depth=depth, verbose=verbose, comm_state=comm_state, ttype=ttype, max_depth=max_depth, prompt_type=prompt_type) #Need to propogate info_prop here.
         plan_list.extend(decomp_plans)
         num_runs += num
         if plan_steps['logic'].lower() == 'or':
@@ -584,7 +762,6 @@ def plan_and_run(commands, task, idx, env, prompt, past_action_checkpoint=[], pa
 # ##############################3
 # Main PARAMETERS
 
-AGENT="ADAPT"
 max_depth=args.max_depth #for full ADAPT: max_depth =4; for REACT max_depth = 1
 # AGENT="REACT"
 num_games = args.num_games #originally 200
@@ -600,31 +777,19 @@ rate = 0.0
 pbar.set_postfix({'success rate': rate})
 env = TextCraft()
 
-if AGENT=="ADAPT":
-    for idx in pbar:
-        obs, info = env.reset(seed=idx)
-        commands, task = obs.split('Goal: ')
-        trace = []
-        r, succ, term, env, trace, actions, depth, plans, num_runs, _ = plan_and_run(commands, task, idx, env, atomic_exec_prompt, past_action_checkpoint=[], comm_state=False, verbose=verbose, max_depth=max_depth)
-        rs.append(r)
-        cnts.append(1)
-        depths.append(depth)
-        rate = sum(rs)/sum(cnts)
-        outputs[f'env_{idx}'] = {'problem': task, 'commands': commands, 'trace': trace, 'plans': plans, 'reward': r, 'runs': num_runs}
-        pbar.set_postfix({'rate': rate})
-    outputs['overall'] = {'rate': sum(rs) / sum(cnts),  'count': cnts, "num_envs":sum(cnts), "depths":depths}
-# elif AGENT=="REACT":
-#     for idx in pbar:
-#         obs, info = env.reset(seed=idx)
-#         commands, task = obs.split('Goal: ')
-#         trace = []
-#         r, succ, term, env, trace, actions, depth, plans, num_runs, _ = plan_and_run(commands, task, idx, env, atomic_exec_prompt, past_action_checkpoint=[], comm_state=False, verbose=verbose, max_depth=max_depth)
-#         rs.append(r)
-#         cnts.append(1)
-#         rate = sum(rs)/sum(cnts)
-#         outputs[f'env_{idx}'] = {'problem': task, 'commands': commands, 'trace': trace, 'plans': plans, 'reward': r, 'runs': num_runs}
-#         pbar.set_postfix({'rate': rate})
-#     outputs['overall'] = {'rate': sum(rs) / sum(cnts),  'count': cnts}
+print(f"Running AGENTTYPE: {AGENT_TYPE} with depth: {max_depth}")
+for idx in pbar:
+    obs, info = env.reset(seed=idx)
+    commands, task = obs.split('Goal: ')
+    trace = []
+    r, succ, term, env, trace, actions, depth, plans, num_runs, _ = plan_and_run(commands, task, idx, env, atomic_exec_prompt, past_action_checkpoint=[], comm_state=False, verbose=verbose, max_depth=max_depth, prompt_type=AGENT_TYPE)
+    rs.append(r)
+    cnts.append(1)
+    depths.append(depth)
+    rate = sum(rs)/sum(cnts)
+    outputs[f'env_{idx}'] = {'problem': task, 'commands': commands, 'trace': trace, 'plans': plans, 'reward': r, 'runs': num_runs}
+    pbar.set_postfix({'rate': rate})
+outputs['overall'] = {'rate': sum(rs) / sum(cnts),  'count': cnts, "num_envs":sum(cnts), "depths":depths}
 
 
 import string
