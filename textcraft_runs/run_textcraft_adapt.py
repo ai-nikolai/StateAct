@@ -37,6 +37,7 @@ parser.add_argument(
     type=str, 
     default="react", 
     choices=[
+        "act", #TODO
         "react", 
         "stateact",
         "stateact_no_thought",

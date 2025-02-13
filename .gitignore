@@ -8,6 +8,7 @@ webshop_runs/*.simg
 webshop_runs/webshop_results_*.txt
 webshop_runs/results/*
 webshop_runs/results_test/*
+webshop_runs/*.csv
 
 alfworld_runs/*.csv
 
