@@ -47,4 +47,4 @@ def write_results_to_csv(folderpath, filename):
 
 
 if __name__=="__main__":
-    write_results_to_csv("./results","v4_16K_full_results.csv")
+    write_results_to_csv("./results/v5_16K","v5_16K_full_results.csv")
