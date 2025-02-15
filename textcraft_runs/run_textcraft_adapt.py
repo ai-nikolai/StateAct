@@ -334,8 +334,8 @@ def clean_action(action, prompt_type="react"):
     if prompt_type=="react":
         return action
     elif "stateact" in prompt_type:
-        # print(action)
-        # print(action.split("action: "))
+        print(action)
+        print(action.split("action: "))
         try:
             action_split = action.split('action: ')[1]
             action_split = action_split.split('\n')[0]
@@ -351,7 +351,13 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
         init_prompt = copy.copy(prompt)
         init_prompt.append({'type': 'env', 'content': ob})
     else:
-        init_prompt = prompt + '\n' + ob + '\n>'
+        if prompt_type=="react":
+            init_prompt = prompt + '\n' + ob + '\n>'
+        elif "stateact" in prompt_type:
+            init_prompt = prompt + '\n\n' + ob + '\n\n>'
+
+        print("init_prompt")
+        
     prompt = ''
     action_history = []
     max_patience = 8

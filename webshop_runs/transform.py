@@ -36,7 +36,9 @@ def write_results_to_csv(folderpath, filename):
             with open(os.path.join(folderpath, file), 'r') as f:
                 text = f.read()
                 try:
-                    results.append(parse_results(text))
+                    current_result = parse_results(text)
+                    if "google" in current_result[1]:
+                        results.append(current_result)
                 except:
                     continue
     
@@ -47,4 +49,4 @@ def write_results_to_csv(folderpath, filename):
 
 
 if __name__=="__main__":
-    write_results_to_csv("./results/v5_16K","v5_16K_full_results.csv")
+    write_results_to_csv("./results/v5_16K","v5_16K_gemma_results.csv")
