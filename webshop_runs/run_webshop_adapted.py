@@ -55,7 +55,8 @@ elif LLM_TYPE=="CHAT":
   print("RUNNING OPENAI WITH CHAT MODEL")
 
   import openai
-  MODEL = "gpt-3.5-turbo-0125" 
+  # MODEL = "gpt-3.5-turbo-0125" 
+  MODEL = "gpt-3.5-turbo-1106" 
   openai.api_key = os.environ["OPENAI_API_KEY"]
   client = openai.OpenAI()
 
@@ -464,7 +465,7 @@ Here is an example interaction:
 WebShop"""
 
 
-system_prompt_gpt4o=f"""
+system_prompt_gpt4o=f"""You are a shopping assistant. Buy the closest item to the instruction provided.
 {START}
 WebShop"""
 
