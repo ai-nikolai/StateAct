@@ -6,7 +6,7 @@ from datetime import datetime
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--llm_type", type=str, default="NORMAL", choices=["NORMAL", "CHAT", "TROPIC", "LOCAL"])
-parser.add_argument("--socket", type=str, default="tmp/webshop.sock")
+parser.add_argument("--socket", type=str)
 parser.add_argument("--model_local", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
 parser.add_argument("--start", type=int, default=0)
 parser.add_argument("--num_envs", type=int, default=30)
