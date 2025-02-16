@@ -23,14 +23,14 @@ fi;
 
 
 if [ $1 == "webshop_api" ]; then
-    NUM_ENVS=30
-    EXPERIMENT_NAME="results/v6_api"
+    NUM_ENVS=100
+    EXPERIMENT_NAME="results/v6_api_paper"
 
     python3 run_webshop_adapted.py \
         --llm_type NORMAL \
         --start 0 \
         --num_env $NUM_ENVS \
-        --agent ssa \
+        --agent act \
         --results_folder $EXPERIMENT_NAME \
         --seed 42
 fi;
@@ -50,9 +50,9 @@ if [ $1 == "webshop_api_chat" ]; then
 fi;
 
 if [ $1 == "webshop_eval" ]; then
-    NUM_ENVS=1
+    NUM_ENVS=100
     # EXPERIMENT_NAME="results/v6_api_paper"
-    EXPERIMENT_NAME="results/v6_api"
+    EXPERIMENT_NAME="results/v6_api_paper"
 
 
     python3 run_webshop_adapted.py \
