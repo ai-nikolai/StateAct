@@ -16,30 +16,68 @@ from alfworld.agents.environment import get_environment
 
 from llamp.llms import Manual
 try:
-    from llamp.llms.api import (
-        AnthropicChat, AnthropicText,
-        CohereChat, CohereChatText, CohereText,
-        OpenAIChat, OpenAIChatText, OpenAIText, OpenAIChatTextSampling,
-        NvidiaChatText,
-        CerebrasChatText
-    )
+    from llamp.llms.api import AnthropicChat, AnthropicText
+    anthropic_avail=True
 except Exception as e:
     print(e)
-    print("Did not import API based models")
+    print("Did not import Anthropic")
+    anthropic_avail=False
+
+try:
+    from llamp.llms.api import CohereChat, CohereChatText, CohereText
+    cohere_avail=True
+except Exception as e:
+    print(e)
+    print("Did not import Cohere")
+    cohere_avail=False
+
+try:
+    from llamp.llms.api import OpenAIChat, OpenAIChatText, OpenAIText, OpenAIChatTextSampling
+    openai_avail=True
+except Exception as e:
+    print(e)
+    print("Did not import OpenAI")
+    openai_avail=False
+
+try:
+    from llamp.llms.api import NvidiaChatText
+    nvidia_avail=True
+except Exception as e:
+    print(e)
+    print("Did not import NvidaCloud")
+    nvidia_avail=False
+
+try:
+    from llamp.llms.api import CerebrasChatText
+    cerebras_avail=True
+except Exception as e:
+    print(e)
+    print("Did not import Cerebras")  
+    cerebras_avail=False
+
 
 try:
     from llamp.llms.local import (
         VLLMChat
     )
+    vllm_avail=True
 except Exception as e:
     print(e)
     print("Did not import local model")
+    vllm_avail=False
 
 from alfworld_ablation_generator import return_jsonstate_prompt, return_stringstate_prompt
 from alfworld_react_prompt_utils import return_react_examples, return_agentbench_prompts, return_json_react_examples
 
 
-print("Successfully imported everything.")
+print("End of imports. Imported:")
+print(f"OpenAI: {openai_avail}")
+print(f"Anthropic: {anthropic_avail}")
+print(f"Cohere: {cohere_avail}")
+print(f"Nvidia: {nvidia_avail}")
+print(f"Cerebras: {cerebras_avail}")
+print(f"VLLM: {vllm_avail}")
+
 
 # Git patch commit: https://stackoverflow.com/questions/1085162/commit-only-part-of-a-files-changes-in-git
 #################################################################
