@@ -334,29 +334,32 @@ def clean_action(action, prompt_type="react"):
     if prompt_type=="react":
         return action
     elif "stateact" in prompt_type:
-        print(action)
-        print(action.split("action: "))
         try:
             action_split = action.split('action: ')[1]
             action_split = action_split.split('\n')[0]
             return action_split
         except Exception as e:
-            print("\n\n\n\n\n\n===================\nWe are receiving a fault in the model prediction.\n\n\n\n\n")
+            print("\n\n\n\n\n\n===================START OF ERROR\nWe are receiving a fault in the model prediction.\n\n\n\n\n")
             print(e)
+            print("====END OF ERROR")
+
             return action
 
 
 def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, output_term=True, prompt_type="react"):
+    print(f"\n\n\n=============================\nSTARTING TEXTCRAFT RUN ADAPT:")
     if isinstance(prompt, list): 
         init_prompt = copy.copy(prompt)
         init_prompt.append({'type': 'env', 'content': ob})
+        print(f"===\nInit Prompt LIST!!:\n---\n{init_prompt}")
+
     else:
         if prompt_type=="react":
             init_prompt = prompt + '\n' + ob + '\n>'
         elif "stateact" in prompt_type:
             init_prompt = prompt + '\n\n' + ob + '\n\n>'
 
-        print("init_prompt")
+        print(f"===\nInit Prompt NOT LIST:\n---\n{init_prompt}")
         
     prompt = ''
     action_history = []
@@ -369,20 +372,34 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
         print(env.step('inventory'))
         print(ob)
         sys.stdout.flush()
+    
+    print("----------------STARTing MAIN LOOP")
     for i in range(1, max_runs):
+        print(f"---------- IDX Start: {i}")
+
         if prompt_type=="react":
+            print("Calling ReAct Prompt:")
             action = call_llm(init_prompt + prompt, stop=['\n']).strip()
         elif "stateact" in prompt_type:
+            print("Calling StateAct Prompt:")
+            print(f"===\nPROMPT:\n---\n{prompt}")
+
             action = call_llm(init_prompt + prompt, stop=['\n\n']).strip()
-            # print(f"=============\nWe received action: {action}")
         else:
             raise NotImplementedError(f"Prompt type {prompt_type} is not available.")
-
+        print(f"===\nWe received action:\n---\n{action}")
         num_runs += 1
         action = action.lstrip('> ')
         
-        observation, reward, done, _,  info = env.step(action)
-        
+        clean_action = clean_action(action, prompt_type=prompt_type)
+        print(f"===\nClean Action:\n---\n{action}")
+
+        observation, reward, done, _,  info = env.step(clean_action)
+        print(f"===\nObservation:\n---\n{observation}")
+
+        print(f"===\Reward & Done:\nreward:{reward}\ndone:{done}")
+
+
         if 'task completed' in action.lower(): done = True; success = True
         if 'task failed' in action.lower(): done = True; success = False
         if action.startswith('think'):
@@ -390,7 +407,6 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
             if 'task completed' in action.lower(): done = True; success = True
             if 'task failed' in action.lower(): done = True; success = False
         else: 
-            action = clean_action(action, prompt_type=prompt_type)
             action_history.append(action)
         if "Could not" in observation or observation == "OK.": 
             pat_ctr += 1
@@ -400,7 +416,16 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
             print(f'Act {i}: {action}\nObs {i}: {observation}')
             # print(pat_ctr)
             sys.stdout.flush()
-        prompt += f' {action}\n{observation}\n>'
+
+        # UPDATE PROMPT
+        if prompt_type=="react":
+            prompt += f' {action}\n{observation}\n>'
+        elif "stateact" in prompt_type:
+            prompt += f' {action}\n\n{observation}\n\n>'
+        
+
+
+        # prompt += f' {action}\n{observation}\n>'
         if reward > 0: success = True; terminate = False
         if done:
             return reward, success, terminate, prompt, action_history, num_runs
@@ -1152,6 +1177,7 @@ def plan_and_run(
                 except: logic = "AND"; plan_steps['logic'] = logic
         depth += 1
     else:
+        print("+++++++++++++++++++++++++++++++\n\nTASK IS NOT STRING\n\n+++++++++++++++++++++++++++++++")
         plan_steps = task
         try: logic = plan_steps['logic']
         except: logic = "AND"; plan_steps['logic'] = logic
