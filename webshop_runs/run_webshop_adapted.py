@@ -6,7 +6,7 @@ from datetime import datetime
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--llm_type", type=str, default="NORMAL", choices=["NORMAL", "CHAT", "TROPIC", "LOCAL"])
-parser.add_argument("--socket", type=str, default="tmp/webshop.sock")
+parser.add_argument("--socket", type=str)
 parser.add_argument("--model_local", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
 parser.add_argument("--start", type=int, default=0)
 parser.add_argument("--num_envs", type=int, default=30)
@@ -55,7 +55,8 @@ elif LLM_TYPE=="CHAT":
   print("RUNNING OPENAI WITH CHAT MODEL")
 
   import openai
-  MODEL = "gpt-3.5-turbo-0125" 
+  # MODEL = "gpt-3.5-turbo-0125" 
+  MODEL = "gpt-3.5-turbo-1106" 
   openai.api_key = os.environ["OPENAI_API_KEY"]
   client = openai.OpenAI()
 
@@ -464,7 +465,7 @@ Here is an example interaction:
 WebShop"""
 
 
-system_prompt_gpt4o=f"""
+system_prompt_gpt4o=f"""You are a shopping assistant. Buy the closest item to the instruction provided.
 {START}
 WebShop"""
 

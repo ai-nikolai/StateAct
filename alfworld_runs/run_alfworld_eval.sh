@@ -13,17 +13,35 @@ if [ $1 == "test" ]; then
 fi;
 
 
+
+if [ $1 == "eval_act_only" ]; then
+    keys_to_use='["action"]'
+    python3 alfworld_run.py \
+        --agent "ours-text" \
+        --llm_type "OpenAIChatText" \
+        --model "gpt-3.5-turbo-1106" \
+        --trial_name "v5_0_1_act_only" \
+        --start_index 0 \
+        --num_envs 135 \
+        --prompt_ids 1 0 \
+        --keys_to_use $keys_to_use \
+        --apply_correction
+        # --end_index \
+
+fi;
+
 if [ $1 == "test_ours" ]; then
     keys_to_use='["goal","thought","locations_visited","current_location","current_inventory","action"]'
     python3 alfworld_run.py \
-        --agent "ours" \
+        --agent "ours-text" \
         --llm_type "OpenAIChatText" \
         --model "gpt-3.5-turbo-1106" \
         --trial_name "v4_0_1_test" \
         --start_index 0 \
         --num_envs 1 \
-        --prompt_ids 0 1 \
-        --keys_to_use $keys_to_use
+        --prompt_ids 1 0 \
+        --keys_to_use $keys_to_use \
+        --apply_correction
         # --end_index \
 
 fi;
