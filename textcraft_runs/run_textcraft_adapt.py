@@ -391,10 +391,10 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
         num_runs += 1
         action = action.lstrip('> ')
         
-        clean_action = clean_action(action, prompt_type=prompt_type)
+        extracted_action = clean_action(action, prompt_type=prompt_type)
         print(f"===\nClean Action:\n---\n{action}")
 
-        observation, reward, done, _,  info = env.step(clean_action)
+        observation, reward, done, _,  info = env.step(extracted_action)
         print(f"===\nObservation:\n---\n{observation}")
 
         print(f"===\Reward & Done:\nreward:{reward}\ndone:{done}")
