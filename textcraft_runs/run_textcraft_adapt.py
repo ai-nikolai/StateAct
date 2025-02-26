@@ -346,7 +346,7 @@ def clean_action(action, prompt_type="react"):
             return action
 
 
-def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, output_term=True, prompt_type="react"):
+def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, output_term=True, prompt_type="react", verbose=False):
     print(f"\n\n\n=============================\nSTARTING TEXTCRAFT RUN ADAPT:")
     if isinstance(prompt, list): 
         init_prompt = copy.copy(prompt)
@@ -382,7 +382,8 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
             action = call_llm(init_prompt + prompt, stop=['\n']).strip()
         elif "stateact" in prompt_type:
             print("Calling StateAct Prompt:")
-            print(f"===\nPROMPT:\n---\n{prompt}")
+            if verbose:
+                print(f"===\nPROMPT:\n---\n{prompt}")
 
             action = call_llm(init_prompt + prompt, stop=['\n\n']).strip()
         else:
@@ -392,7 +393,7 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
         action = action.lstrip('> ')
         
         extracted_action = clean_action(action, prompt_type=prompt_type)
-        print(f"===\nClean Action:\n---\n{action}")
+        print(f"===\nClean Action:\n---\n{extracted_action}")
 
         observation, reward, done, _,  info = env.step(extracted_action)
         print(f"===\nObservation:\n---\n{observation}")
