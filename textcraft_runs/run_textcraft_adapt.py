@@ -43,6 +43,8 @@ parser.add_argument(
         "stateact_no_thought",
         "stateact_no_state",
         "stateact_no_goal",
+        "act",
+        "state_only"
     ]
 )
 
@@ -333,7 +335,9 @@ def clean_action(action, prompt_type="react"):
     """
     if prompt_type=="react":
         return action
-    elif "stateact" in prompt_type:
+    # TODO: Assuming that all other prompts are stateact style prompts for now.
+    # elif "stateact" in prompt_type:
+    else:
         try:
             action_split = action.split('action: ')[1]
             action_split = action_split.split('\n')[0]
@@ -356,7 +360,9 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
     else:
         if prompt_type=="react":
             init_prompt = prompt + '\n' + ob + '\n>'
-        elif "stateact" in prompt_type:
+        # TODO: Assuming that all other prompts are stateact style prompts for now.
+        # elif "stateact" in prompt_type:
+        else:
             init_prompt = prompt + '\n\n' + ob + '\n\n>'
 
         print(f"===\nInit Prompt NOT LIST:\n---\n{init_prompt}")
@@ -380,14 +386,16 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
         if prompt_type=="react":
             print("Calling ReAct Prompt:")
             action = call_llm(init_prompt + prompt, stop=['\n']).strip()
-        elif "stateact" in prompt_type:
+        # TODO: Assuming that all other prompts are stateact style prompts for now.
+        # elif "stateact" in prompt_type:
+        else:
             print("Calling StateAct Prompt:")
             if verbose:
                 print(f"===\nPROMPT:\n---\n{prompt}")
 
             action = call_llm(init_prompt + prompt, stop=['\n\n']).strip()
-        else:
-            raise NotImplementedError(f"Prompt type {prompt_type} is not available.")
+        # else:
+            # raise NotImplementedError(f"Prompt type {prompt_type} is not available.")
         print(f"===\nWe received action:\n---\n{action}")
         num_runs += 1
         action = action.lstrip('> ')
@@ -421,7 +429,9 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
         # UPDATE PROMPT
         if prompt_type=="react":
             prompt += f' {action}\n{observation}\n>'
-        elif "stateact" in prompt_type:
+        # TODO: Assuming that all other prompts are stateact style prompts for now.
+        # elif "stateact" in prompt_type:
+        else:
             prompt += f' {action}\n\n{observation}\n\n>'
         
 

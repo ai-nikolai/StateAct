@@ -28,7 +28,8 @@ parser.add_argument(
     "stateact-no-goal",
     "stateact-no-state",
     "ssa",
-    "stateact2"
+    "stateact2",
+    "gsta"
   ]
 )
 
@@ -2000,7 +2001,8 @@ with open(os.path.join(FOLDER,'scores.csv'), 'a') as f:
       f.write(f"ssa,{current_date},{clean_model_name},{sc7[0]},{sc7[1]},{sc7[2]}\n")
   if "stateact2" in experiments_to_run:
       f.write(f"stateact2,{current_date},{clean_model_name},{sc13[0]},{sc13[1]},{sc13[2]}\n")
-
+  if "gsta" in experiments_to_run:
+      f.write(f"gsta,{current_date},{clean_model_name},{sc13[0]},{sc13[1]},{sc13[2]}\n")
 # OUTPUTTING RESULTS TO A FILE
 
 output_str = f'''=====================
