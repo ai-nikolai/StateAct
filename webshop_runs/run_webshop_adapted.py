@@ -1705,7 +1705,7 @@ if "gsta" in experiments_to_run:
   print(steps3)
   print(sum(steps3)/len(steps3))
 
-if "ta" in experiments_to_run:
+if "sta" in experiments_to_run:
   t4s = time.localtime()
   res4, sc4 , steps4 = run_episodes(stateact_prompt_sta, N, s=s, state="Current Location", max_steps=MS)
   t4e = time.localtime()
@@ -1765,7 +1765,7 @@ if "stateact-no-thoughts" in experiments_to_run:
   print(steps9)
   print(sum(steps9)/len(steps9))
 
-if "ta" in experiments_to_run:
+if "ga" in experiments_to_run:
   t10s = time.localtime()
   res10, sc10 , steps10 = run_episodes(stateact_prompt_ga, N, s=s, state="Goal", max_steps=MS)
   t10e = time.localtime()
@@ -1851,7 +1851,7 @@ if "ta" in experiments_to_run:
   print(sum(steps2)/len(steps2))
 
 if "gsta" in experiments_to_run:
-  print('=====================3')
+  print('=====================3-gsta')
   print(res3)
   print(sc3)
   print(t3s)
@@ -1859,8 +1859,8 @@ if "gsta" in experiments_to_run:
   print(steps3)
   print(sum(steps3)/len(steps3))
 
-if "ta" in experiments_to_run:
-  print('=====================4')
+if "sta" in experiments_to_run:
+  print('=====================4-sta')
   print(res4)
   print(sc4)
   print(t4s)
@@ -1913,8 +1913,8 @@ if "stateact-no-thoughts" in experiments_to_run:
   print(steps9)
   print(sum(steps9)/len(steps9))
 
-if "ta" in experiments_to_run:
-  print('=====================10')
+if "ga" in experiments_to_run:
+  print('=====================10-ga')
   print(res10)
   print(sc10)
   print(t10s)
@@ -1984,25 +1984,35 @@ if not os.path.exists(os.path.join(FOLDER,'scores.csv')):
     with open(os.path.join(FOLDER,'scores.csv'), 'w') as f:
         f.write("agent,date,model,avg_score,success_rate,failure_rate\n")
 
-with open(os.path.join(FOLDER,'scores.csv'), 'a') as f:
-  if "act" in experiments_to_run:
-      f.write(f"act,{current_date},{clean_model_name},{sc0[0]},{sc0[1]},{sc0[2]}\n")
-  if "react" in experiments_to_run:
-      f.write(f"react,{current_date},{clean_model_name},{sc1[0]},{sc1[1]},{sc1[2]}\n")
-  if "stateact" in experiments_to_run:
-      f.write(f"stateact,{current_date},{clean_model_name},{sc6[0]},{sc6[1]},{sc6[2]}\n") 
-  if "stateact-no-thoughts" in experiments_to_run:
-      f.write(f"stateact-no-thoughts,{current_date},{clean_model_name},{sc9[0]},{sc9[1]},{sc9[2]}\n")
-  if "stateact-no-goal" in experiments_to_run:
-      f.write(f"stateact-no-goal,{current_date},{clean_model_name},{sc5[0]},{sc5[1]},{sc5[2]}\n")
-  if "stateact-no-state" in experiments_to_run:
-      f.write(f"stateact-no-state,{current_date},{clean_model_name},{sc11[0]},{sc11[1]},{sc11[2]}\n")
-  if "ssa" in experiments_to_run:
-      f.write(f"ssa,{current_date},{clean_model_name},{sc7[0]},{sc7[1]},{sc7[2]}\n")
-  if "stateact2" in experiments_to_run:
-      f.write(f"stateact2,{current_date},{clean_model_name},{sc13[0]},{sc13[1]},{sc13[2]}\n")
-  if "gsta" in experiments_to_run:
-      f.write(f"gsta,{current_date},{clean_model_name},{sc13[0]},{sc13[1]},{sc13[2]}\n")
+try:
+  with open(os.path.join(FOLDER,'scores.csv'), 'a') as f:
+    if "act" in experiments_to_run:
+        f.write(f"act,{current_date},{clean_model_name},{sc0[0]},{sc0[1]},{sc0[2]}\n")
+    if "react" in experiments_to_run:
+        f.write(f"react,{current_date},{clean_model_name},{sc1[0]},{sc1[1]},{sc1[2]}\n")
+    if "stateact" in experiments_to_run:
+        f.write(f"stateact,{current_date},{clean_model_name},{sc6[0]},{sc6[1]},{sc6[2]}\n") 
+    if "stateact-no-thoughts" in experiments_to_run:
+        f.write(f"stateact-no-thoughts,{current_date},{clean_model_name},{sc9[0]},{sc9[1]},{sc9[2]}\n")
+    if "stateact-no-goal" in experiments_to_run:
+        f.write(f"stateact-no-goal,{current_date},{clean_model_name},{sc5[0]},{sc5[1]},{sc5[2]}\n")
+    if "stateact-no-state" in experiments_to_run:
+        f.write(f"stateact-no-state,{current_date},{clean_model_name},{sc11[0]},{sc11[1]},{sc11[2]}\n")
+    if "ssa" in experiments_to_run:
+        f.write(f"ssa,{current_date},{clean_model_name},{sc7[0]},{sc7[1]},{sc7[2]}\n")
+    if "stateact2" in experiments_to_run:
+        f.write(f"stateact2,{current_date},{clean_model_name},{sc13[0]},{sc13[1]},{sc13[2]}\n")
+    if "gsta" in experiments_to_run:
+        f.write(f"gsta,{current_date},{clean_model_name},{sc3[0]},{sc3[1]},{sc3[2]}\n")
+
+    if "sta" in experiments_to_run:
+        f.write(f"sta,{current_date},{clean_model_name},{sc4[0]},{sc4[1]},{sc4[2]}\n")
+    if "ga" in experiments_to_run:
+        f.write(f"ga,{current_date},{clean_model_name},{sc10[0]},{sc10[1]},{sc10[2]}\n")
+except Exception as e:
+  print("=======\nError with writing scores!")
+  print(e)
+
 # OUTPUTTING RESULTS TO A FILE
 
 output_str = f'''=====================
@@ -2031,20 +2041,20 @@ s={s}, N={N}
 {t2e}
 {steps2}
 {sum(steps2)/len(steps2)}''' if "ta" in experiments_to_run else '',
-    f'''=====================3
+    f'''=====================3-gsta
 {res3}
 {sc3}
 {t3s}
 {t3e}
 {steps3}
 {sum(steps3)/len(steps3)}''' if "gsta" in experiments_to_run else '',
-    f'''=====================4
+    f'''=====================4-sta
 {res4}
 {sc4}
 {t4s}
 {t4e}
 {steps4}
-{sum(steps4)/len(steps4)}''' if "ta" in experiments_to_run else '',
+{sum(steps4)/len(steps4)}''' if "sta" in experiments_to_run else '',
     f'''=====================5-ssta
 {res5}
 {sc5}
@@ -2080,13 +2090,13 @@ s={s}, N={N}
 {t9e}
 {steps9}
 {sum(steps9)/len(steps9)}''' if "stateact-no-thoughts" in experiments_to_run else '',
-    f'''=====================10
+    f'''=====================10-ga  
 {res10}
 {sc10}
 {t10s}
 {t10e}
 {steps10}
-{sum(steps10)/len(steps10)}''' if "ta" in experiments_to_run else '',
+{sum(steps10)/len(steps10)}''' if "ga" in experiments_to_run else '',
     f'''=====================11-gta
 {res11}
 {sc11}
