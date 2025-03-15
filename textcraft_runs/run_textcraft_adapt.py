@@ -44,7 +44,9 @@ parser.add_argument(
         "stateact_no_state",
         "stateact_no_goal",
         "act",
-        "state_only"
+        "state_only",
+        "goal_action",
+        "state_thought_action"
     ]
 )
 
@@ -493,6 +495,224 @@ Here is a different goal with different craft commands. Your task is to come up 
 # STATEACT PROMPTS
 # ####################################################
 
+# GOAL ACTION
+atomic_examples_goal_action = {
+'craft_with_ingredients':'''Crafting commands:
+craft 3 dark oak sign using 6 dark oak planks, 1 stick
+craft 4 dark oak planks using 1 dark oak log
+craft 1 stick using 1 planks
+craft 4 stick using 2 bamboo
+craft 4 oak planks using 1 oak log
+craft 1 dark oak fence using 2 stick, 4 dark oak planks
+craft 1 warped stairs using 6 warped planks
+craft 3 oak sign using 6 oak planks, 1 stick
+
+Goal: craft dark oak sign
+
+> goal: craft dark oak sign
+action: inventory
+
+Inventory: [stick] (1) [dark oak planks] (6)
+
+> goal: craft dark oak sign
+action: get dark oak sign
+
+Could not find dark oak sign
+
+> goal: craft dark oak sign
+action: inventory
+
+Inventory: [stick] (1) [dark oak planks] (6)
+
+> goal: craft dark oak sign
+action: craft 3 dark oak sign using 6 dark oak planks, 1 stick
+
+Crafted 3 minecraft:dark_oak_sign
+
+> goal: craft dark oak sign
+action: inventory
+
+Inventory: [dark oak sign] (3)
+
+> goal: craft dark oak sign
+action: None
+''', 
+'craft_with_ingredients_gen':'''Goal: fetch 2 dark oak logs.
+
+> goal: fetch 2 dark oak logs
+action: inventory
+
+Inventory: [stick] (1)
+
+> goal: fetch 2 dark oak logs
+action: get 2 dark oak logs
+
+Got 2 dark oak logs
+
+> goal: fetch 2 dark oak logs
+action: inventory
+
+Inventory: [dark oak log] (2) [stick] (1)
+
+> goal: fetch 2 dark oak logs
+action: None
+'''
+}
+
+goal_action_trajectory = '''Goal: craft 2 oak planks
+
+> goal: craft 2 oak planks
+action: intentory
+
+Inventory: [stick] (1) 
+
+> goal: craft 2 oak planks
+action: get 2 oak planks
+
+Could not find 2 oak planks
+
+> goal: craft 2 oak planks
+action: inventory
+
+Inventory: [stick] (1) 
+
+> goal: craft 2 oak planks
+action: get 1 oak log
+
+Got 1 oak log
+
+> goal: craft 2 oak planks
+action: craft 4 oak planks using 1 oak log
+
+Crafted 4 minecraft:oak_planks
+
+> goal: craft 2 oak planks
+action: inventory
+
+Inventory: [stick] (1) [oak_planks] (4)
+
+> goal: craft 2 oak planks
+action: None
+'''
+
+# STATE THOUGHT ACTION
+atomic_examples_state_thought_action = {
+'craft_with_ingredients':'''Crafting commands:
+craft 3 dark oak sign using 6 dark oak planks, 1 stick
+craft 4 dark oak planks using 1 dark oak log
+craft 1 stick using 1 planks
+craft 4 stick using 2 bamboo
+craft 4 oak planks using 1 oak log
+craft 1 dark oak fence using 2 stick, 4 dark oak planks
+craft 1 warped stairs using 6 warped planks
+craft 3 oak sign using 6 oak planks, 1 stick
+
+Goal: craft dark oak sign
+
+> inventory: Unknown
+think: I should check if I can fetch dark oak sign directly from the environment or the inventory.
+action: inventory
+
+Inventory: [stick] (1) [dark oak planks] (6)
+
+> inventory: 1 stick, 6 dark oak planks
+think: None
+action: get dark oak sign
+
+Could not find dark oak sign
+
+> inventory: 1 stick, 6 dark oak planks
+think: I cannot get dark oak sign directly, I need to craft it. From the crafting commands, I can use: craft dark oak sign using 6 dark oak planks, 1 stick. Ingredients needed: 6 dark oak planks, 1 stick. Input assumption: I have all the neccessary ingredients in my inventory. Let me verify this first.
+action: inventory
+
+Inventory: [stick] (1) [dark oak planks] (6)
+
+> inventory: 1 stick, 6 dark oak planks
+think: I found my ingredients: 6 dark oak planks, 1 stick in my inventory. My assumption is true, I can proceed. I will use the crafting command: craft dark oak sign using 6 dark oak planks
+action: craft 3 dark oak sign using 6 dark oak planks, 1 stick
+
+Crafted 3 minecraft:dark_oak_sign
+
+> inventory: 3 dark oak sign
+think: None
+action: inventory
+
+Inventory: [dark oak sign] (3)
+
+> inventory: 3 dark oak sign
+think: I now have dark oak sign in my inventory. Task Completed!
+action: None
+''', 
+'craft_with_ingredients_gen':'''Goal: fetch 2 dark oak logs.
+
+> inventory: unknown
+think: I should check my inventory first, to see if I already have dark oak sign. Otherwise, I will directly try to get it from the environment.
+action: inventory
+
+Inventory: [stick] (1)
+
+> inventory: 1 stick
+think: None
+action: get 2 dark oak logs
+
+Got 2 dark oak logs
+
+> inventory: 1 stick, 2 dark oak log
+think: None
+action: inventory
+
+Inventory: [dark oak log] (2) [stick] (1)
+
+> inventory: 1 stick, 2 dark oak log
+think: I have 2 dark oak logs in my inventory. Task Completed!
+action: None
+'''
+}
+
+state_thought_action_trajectory = '''Goal: craft 2 oak planks
+
+> inventory: unknown
+think: I should check if I can fetch dark oak sign directly from the environment or the inventory.
+action: intentory
+
+Inventory: [stick] (1) 
+
+> inventory: 1 stick
+think: None
+action: get 2 oak planks
+
+Could not find 2 oak planks
+
+> inventory: 1 stick
+think: I cannot get oak planks directly, I need to craft it. From the crafting commands, I can use: craft 4 oak planks using 1 oak log. Ingredients needed: 1 dark oak log. Input assumption: I have the ingredients needed in my inventory. Let me verify this first.
+action: inventory
+
+Inventory: [stick] (1) 
+
+> inventory: 1 stick
+think: My assumption is false. I need to get the ingredients: 1 oak log first.
+action: get 1 oak log
+
+Got 1 oak log
+
+> inventory: 1 stick, 1 oak log
+think: None
+action: craft 4 oak planks using 1 oak log
+
+Crafted 4 minecraft:oak_planks
+
+> inventory: 1 stick, 4 oak planks
+think: None
+action: inventory
+
+Inventory: [stick] (1) [oak_planks] (4)
+
+> inventory: 1 stick, 4 oak planks
+think: I now have 2 oak planks in my inventory. Task Completed!
+action: None
+'''
+
+# STATEACT
 atomic_examples_stateact = {
 'craft_with_ingredients':'''Crafting commands:
 craft 3 dark oak sign using 6 dark oak planks, 1 stick
@@ -623,7 +843,7 @@ Inventory: [stick] (1) [oak_planks] (4)
 > goal: craft 2 oak planks
 inventory: 1 stick, 4 oak planks
 think: I now have 2 oak planks in my inventory. Task Completed!
-acition: None
+action: None
 '''
 
 # NO THOUGHT
@@ -740,7 +960,7 @@ Inventory: [stick] (1) [oak_planks] (4)
 
 > goal: craft 2 oak planks
 inventory: 1 stick, 4 oak planks
-acition: None
+action: None
 '''
 
 
@@ -858,7 +1078,7 @@ Inventory: [stick] (1) [oak_planks] (4)
 
 > goal: craft 2 oak planks
 think: I now have 2 oak planks in my inventory. Task Completed!
-acition: None
+action: None
 '''
 
 
@@ -976,7 +1196,7 @@ Inventory: [stick] (1) [oak_planks] (4)
 
 > inventory: 1 stick, 4 oak planks
 think: I now have 2 oak planks in my inventory. Task Completed!
-acition: None
+action: None
 '''
 
 
@@ -1160,7 +1380,7 @@ action: inventory
 Inventory: [stick] (1) [oak_planks] (4)
 
 > inventory: 1 stick, 4 oak planks
-acition: None
+action: None
 '''
 
 
@@ -1313,6 +1533,21 @@ elif AGENT_TYPE=="state_only":
     atomic_exec_prompt +=  '\n\n'.join(atomic_examples_state_only[k] for k in atomic_examples_state_only.keys()) + '\n'
     # Pure Stateact
     atomic_exec_prompt += 'Here is an example of a complex goal.\n\n' + state_only_trajectory + '\n'
+
+elif AGENT_TYPE=="goal_action":
+    # STATEACT ALTERNATIVE
+    atomic_exec_prompt+="""\n\nHere is a demo of how to fetch and craft objects.\n\n"""
+    atomic_exec_prompt +=  '\n\n'.join(atomic_examples_goal_action[k] for k in atomic_examples_goal_action.keys()) + '\n'
+    # Pure Stateact
+    atomic_exec_prompt += 'Here is an example of a complex goal.\n\n' + goal_action_trajectory + '\n'
+
+elif AGENT_TYPE=="state_thought_action":
+    # STATEACT ALTERNATIVE
+    atomic_exec_prompt+="""\n\nHere is a demo of how to fetch and craft objects.\n\n"""
+    atomic_exec_prompt +=  '\n\n'.join(atomic_examples_state_thought_action[k] for k in atomic_examples_state_thought_action.keys()) + '\n'
+    # Pure Stateact
+    atomic_exec_prompt += 'Here is an example of a complex goal.\n\n' + state_thought_action_trajectory + '\n'
+
 
 atomic_exec_prompt += "Now here is a different goal. You can use these crafting commands to accomplish the goal. When you the desired item in your inventory, think: Task Completed! If you have tried your best but cannot proceed, think: task failed!\n" 
 
