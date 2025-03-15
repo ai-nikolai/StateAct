@@ -1,6 +1,6 @@
 # StateAct Paper
 
-This is an implementation of the stateact paper:
+This is the **OFFICIAL** implementation of the stateact paper:
 [https://arxiv.org/abs/2410.02810]
 
 ## Getting started
