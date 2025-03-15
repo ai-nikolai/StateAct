@@ -29,7 +29,9 @@ parser.add_argument(
     "stateact-no-state",
     "ssa",
     "stateact2",
-    "gsta"
+    "gsta",
+    "ga",
+    "sta"
   ]
 )
 
