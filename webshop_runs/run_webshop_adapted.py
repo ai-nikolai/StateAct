@@ -15,6 +15,9 @@ parser.add_argument("--quantization", type=int, default=0, help="Whether a quant
 parser.add_argument("--gpus", type=int, default=1, help="Number of GPUs to use")
 parser.add_argument("--results_folder", type=str, default="results")
 parser.add_argument("--seed", type=int, default=-1, help="Default seed to use for vllm, if -1 then a None / random seed will be chosen.")
+parser.add_argument("--start_token", type=str, help="start token for turns")
+parser.add_argument("--end_token", type=str, help="end token for turns")
+
 
 parser.add_argument(
   "--agent", 
@@ -441,8 +444,20 @@ env = webshopEnv()
 
 # # ReAct
 
-START="```start"
-END="```end"
+if args.start_token:
+  START = args.start_token
+else:
+  START="```start"
+  START="<turn>"
+
+
+if args.end_token:
+  END = args.end_token
+else:
+  END="```end"
+  END="</turn>"
+
+print(f"======\nUsing start: {START} and end: {END}")
 
 # START=""
 # END=""
@@ -1665,8 +1680,8 @@ else:
   experiments_to_run = ["react"]
  
 # experiments_to_run = ["act","react","stateact","stateact-no-thoughts","stateact-no-goal","stateact-no-state","ssa","stateact2"]
-
-
+print("==========================")
+print(f"Experiments to run is:{experiments_to_run}")
 if "act" in experiments_to_run:
   t0s = time.localtime()
   res0, sc0, steps0 = run_episodes(prompt1_actonly, N, s=s, state=None, max_steps=MS)
