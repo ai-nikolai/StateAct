@@ -932,7 +932,7 @@ def build_arg_parser():
     parser.add_argument("--force_model", action="store_true", default=False, help="Whether to force the proposed model")
 
     # Local model params
-    parser.add_argument("--max_model_len", type=int, help="Max Model Len")
+    parser.add_argument("--max_model_len", default=6400, type=int, help="Max Model Len (default is set to 6400).")
     parser.add_argument("--quantization", type=int, default=0, help="Whether a quantized model is being loaded.")
     parser.add_argument("--gpus", type=int, default=1, help="Number of GPUs to use")
     parser.add_argument("--seed", type=int, default=-1, help="Default seed to use for vllm, if -1 then a None / random seed will be chosen.")
@@ -1162,6 +1162,11 @@ if __name__=="__main__":
     #######################################################
     # AGENT Related
     #######################################################
+    try:
+        print(f"======\n======\nNote we are loading a model with: max_model_len:{args.max_model_len}, num_gpus:{args.gpus}, load as quantized:{args.quantization}")
+    except Exception as e:
+        print("Strange Error with Model Params.")
+        print(e)
     agent, actual_model = get_agent_and_model(
         llm_type=llm_type, 
         temperature=temperature, 
