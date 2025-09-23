@@ -83,12 +83,13 @@ python3 alfworld_run.py \
    --seed 42
 ```
 
-<!-- **Expected Result:** -->
-<!-- python3 get_score.py --trial_name "baseline_react_14B"
+**Expected Result:**
+<!-- 
+python3 get_score.py --trial_name "baseline_react_14B"
  -->
-<!-- ```
-
-``` -->
+```
+Overall (mean) Score: 0.746269 with 100 successful envs and a total of 134 envs.
+```
 
 
 
