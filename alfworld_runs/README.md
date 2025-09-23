@@ -100,12 +100,12 @@ export CMAKE_POLICY_VERSION_MINIMUM=3.5
 pip3 install -r pip3 install -r requirements.txt
 ```
 
-
-
 ## OTHER NOTES: 
 
 ### What to use in the State?
+- Note for Alfworld: For 7B or 14B models it is imortant to use `locations_visited` to get the full performance.
 
+- Note for Webshop: Across models and agents, using `thoughts` made performance worse on Webshop.
 
 ### Blackwell GPUs not working: at the moment it seems for Blackwell GPUs the above won't work. (as of 23.09.2025)
 Here is a potential fix (not verified) to install vllm: https://discuss.vllm.ai/t/vllm-on-rtx5090-working-gpu-setup-with-torch-2-9-0-cu128/1492 
