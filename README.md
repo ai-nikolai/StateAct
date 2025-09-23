@@ -6,6 +6,9 @@ This is the **OFFICIAL** implementation of the stateact paper:
 ## Getting started
 Look in the sub-folders *_runs; e.g. alfworld_runs on how to run the invidivual environments.
 
+## Results:
+![Results](images/results.png)
+
 ## Reference:
 Please cite StateAct:
 ```bibtex
@@ -19,6 +22,9 @@ Please cite StateAct:
       url={https://arxiv.org/abs/2410.02810}, 
 }
 ```
+
+## Known Follow-on Work / Usage:
+- https://github.com/Humaid-Ibrahim/msc-ai-individual-project-agentic-ai-learning
 
 ---
 (C) - Nikolai Rozanov 2024-Present
