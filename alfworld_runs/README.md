@@ -39,7 +39,7 @@ python3 get_score.py --trial_name "baseline_14B"
 
 **Expected Result:**
 ```
-Overall (mean) Score: 0.805970 with 108 successful env and a total of 134 envs.
+Overall (mean) Score: 0.805970 with 108 successful envs and a total of 134 envs.
 ```
 
 ---

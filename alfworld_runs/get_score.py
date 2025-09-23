@@ -19,7 +19,7 @@ if __name__=="__main__":
     num_items = df["success"].count()
     num_successful = df["success"].sum()
 
-    print(f"Overall (mean) Score: {overall_score:.6f} with {num_successful} successful env and a total of {num_items} envs.")
+    print(f"Overall (mean) Score: {overall_score:.6f} with {num_successful} successful envs and a total of {num_items} envs.")
 
 
 
