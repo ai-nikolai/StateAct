@@ -13,3 +13,5 @@ webshop_runs/*.csv
 alfworld_runs/*.csv
 
 textcraft_runs/results/*
+
+env_*

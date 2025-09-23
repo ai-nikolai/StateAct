@@ -20,7 +20,7 @@ mkdir game_logs #this is required for alfworld llm to run at the moment (needs t
 4. (Full version) Running alfworld locally:
 ```bash
 mkdir game_logs
-keys_to_use='["goal","thought","current_location","current_inventory","action"]'
+keys_to_use='["goal","current_location","current_inventory","thought","action"]'
 python3 alfworld_run.py \
     --agent "ours-text" \
     --llm_type "VLLMChat" \
@@ -31,6 +31,7 @@ python3 alfworld_run.py \
     --prompt_ids 0 1 \
     --keys_to_use $keys_to_use \
     --force_run \
-    --force_model
+    --force_model \
+    --max_model_len 16000
     # --end_index \
 ```
