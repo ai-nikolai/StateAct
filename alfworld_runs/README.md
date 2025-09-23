@@ -35,3 +35,6 @@ python3 alfworld_run.py \
     --max_model_len 16000
     # --end_index \
 ```
+
+## NOTE: at the moment it seems for Blackwell GPUs the above won't work.
+Here is a potential fix (not verified): https://discuss.vllm.ai/t/vllm-on-rtx5090-working-gpu-setup-with-torch-2-9-0-cu128/1492 
