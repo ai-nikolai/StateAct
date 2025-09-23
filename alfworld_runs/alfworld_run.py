@@ -11,7 +11,10 @@ from datetime import datetime
 # import alfworld.agents.environment
 
 import alfworld.agents.environment as environment
-from alfworld.agents.environment import get_environment
+try:
+    from alfworld.agents.environment import get_environment
+except Exception as e:
+    print(e)
 # import alfworld.agents.modules.generic as generic
 
 from llamp.llms import Manual
@@ -1231,7 +1234,11 @@ if __name__=="__main__":
     # setup environment
     # that's how it was done previously
     # env = getattr(environment, env_type)(config, train_eval=split)
-    env = get_environment(env_type)(config, train_eval=split)
+    try:
+        env = get_environment(env_type)(config, train_eval=split)
+    except:
+        env = getattr(environment, env_type)(config, train_eval=split)
+
     env = env.init_env(batch_size=1)
 
 
