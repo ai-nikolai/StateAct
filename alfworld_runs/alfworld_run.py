@@ -5,10 +5,14 @@ import json
 import re
 import argparse
 from datetime import datetime
+from pathlib import Path
 
+from typing import Iterable, List
 
 # import alfworld
 # import alfworld.agents.environment
+
+from retrieval import ExperienceStore, RuleStore, FacetRetriever, FacetRuleAdapter, StructuredRuleStore
 
 import alfworld.agents.environment as environment
 from alfworld.agents.environment import get_environment
@@ -57,7 +61,7 @@ except Exception as e:
 
 
 try:
-    from llamp.llms.local import (
+    from LLamp.llamp.llms.local import (
         VLLMChat
     )
     vllm_avail=True
@@ -415,7 +419,7 @@ BASE_PROMPT2 = "You will interact with the environment to solve the given task."
 
 TASK_MESSAGE = "Here is the task."
 
-def generate_prompt_from_example(examples, return_raw_prompt = False, number_of_examples=1, base_prompt = "", instructions = "", hints = ""):
+def generate_prompt_from_example(examples, return_raw_prompt = False, number_of_examples=1, base_prompt = "", instructions = "", hints = "", trajectories= ""):
     """ Generates prompt """
     if number_of_examples >1:
         s_string="s"
@@ -444,26 +448,82 @@ def generate_prompt_from_example(examples, return_raw_prompt = False, number_of_
     #This is the part for the raw prompt.
     #
     #########################################
-    raw_prompt = f"""{base_prompt}
+    if args.expel_stage == "eval":
+        raw_prompt = f"""{base_prompt}
 {instructions}
+
+============
+Apply these rules silently to choose the next action.
+Never repeat, quote, or paraphrase this block in thought or action.
+If any rule conflicts with the current observation, prefer the observation.
+{hints}
+============
 
 Here {is_are} {number_of_examples_string} example{s_string}:
 {OPENING_MARK}
 {examples}
 {CLOSING_MARK}
-{hints}
+
+============
+
 {task_message}
 
 """
+
+        
+####### ORIGINAL    
+    else:
+        raw_prompt = f"""{base_prompt}
+{instructions}
+
+============
+
+Here {is_are} {number_of_examples_string} example{s_string}:
+{OPENING_MARK}
+{examples}
+{CLOSING_MARK}
+
+{hints}
+
+============
+
+{task_message}
+
+"""
+
     prompt = [{
                 "role" : "system",
                 "content" : raw_prompt
             }]
-
+    
     if return_raw_prompt:
         return raw_prompt
     else:
         return prompt
+
+def build_expel_prompt(retrieved, rules, mode="retrieve", trial_type=1):
+    
+    if trial_type == 4:
+        rule_block = "\n".join(f"Hint {i+1}: {r}" for i, r in enumerate(rules))
+        sys_content = "\n --- \nHere are some hints for you that will help solve the task:\n" + rule_block + "\n --- \n"
+    elif trial_type == 5:
+        rule_block = "\n".join(f"- {r}" for r in rules)
+        sys_content = rule_block 
+    else:
+        rule_block = "\n".join(f"- {r}" for r in rules)
+        sys_content = "\n=========\nHere are some hints:\n" + rule_block + "\n=========\n"
+    
+    # keep API the same; we don't show trajectories here
+    retrieval_block = "\n\n".join(json.dumps(t, indent=2) for t in (retrieved or [])) if isinstance(retrieved, list) else ""
+    return sys_content, retrieval_block
+
+
+def rule_block(rules: list[str]) -> str:
+    """Formats the list of rules into a block added before the observation."""
+    if not rules:
+        return ""
+    return "RULES:\n" + "\n".join(f"- {r}" for r in rules) + "\n\n"
+
 
 # HINT1="""1. When "Nothing happens." this means your action was not successful or not valid. This can have a variety of reasons, such as not wrong format of the output, or doing something in the wrong location, or using objects that are not available.
 # If this happen, then try a valid action that you have not tried before.
@@ -534,6 +594,7 @@ AGENT_MODEL_MAPPING = {
         "Qwen/Qwen2.5-0.5B-Instruct",
         "Qwen/Qwen2.5-1.5B-Instruct", 
         "Qwen/Qwen2.5-14B-Instruct",
+        "Qwen/Qwen2.5-7B-Instruct",
     ]
 }
 
@@ -788,7 +849,6 @@ def get_prompt_example(agent_type, env_type, prompt_ids, version, generate_promp
         prompt_id_string = '_'.join([str(y) for y in prompt_ids])
         prompt_name = f"react-{prompt_id_string}"
 
-
     elif agent_type=="agentbench":
         num_examples=1
         if generate_prompt:
@@ -897,6 +957,33 @@ def build_arg_parser():
     )
 
     parser.add_argument("--agent_version", type=int, default=1, help="Method Version (if applicable)")
+    parser.add_argument("--enable_lora", action="store_true", default=False, help="Whether to use lora")
+    parser.add_argument("--lora_path", type=str, default=None, help="Path to saved lora adapter")
+
+    parser.add_argument(
+        "--expel_stage",
+        choices=["none", "eval"],
+        default="none",
+        help="Run vanilla agent or perform RAG."
+    )
+    
+    parser.add_argument(
+        "--expel_prompt_mode",
+        choices=["retrieve", "all_rules"],
+        default="retrieve",
+        help="[ExpeL-eval] ‘retrieve’ = k-NN + rules (default). "
+            "‘all_rules’ = ignore retrieval, stuff full rule list into the prompt.",
+    ) 
+    
+    parser.add_argument("--retrieval_method", choices=["llm", "bm25", "tfidf"], default="llm")
+    
+    parser.add_argument("--expel_trial_type", type=int, default=1, help="Type of trial to run")
+    parser.add_argument("--rules_every_step", action="store_true", default=False, help="Whether to apply rules every step")
+
+    parser.add_argument("--k_rules", type=int, default=4, help="Number of k-rules to retrieve (if set to retrieve mode)")
+
+    parser.add_argument("--exp_dir", type=str, help="Directory with experience *.json files") # game_logs/exps
+    parser.add_argument("--rules_path", type=str, help="path to rules.json")
     parser.add_argument("--temperature", type=float, default=0.0, help="Temperature")
     parser.add_argument("--num_prompts", type=int, default=2, help="Number of prompts to use (if applicable) (LEGACY)")
 
@@ -913,12 +1000,12 @@ def build_arg_parser():
     parser.add_argument("--end_index", type=int, default=0, help="Ending index to use (inclusive). (Overrides num_envs)")
     parser.add_argument("--num_envs", type=int,  default=1, help="Sets the num of envs to run (gets overriden by end index)")
 
-
     parser.add_argument(
         "--eval_split",
         type=str,
         default="eval_out_of_distribution",
         choices=[
+            "train",
             "eval_out_of_distribution",
             "eval_in_distribution"
         ],
@@ -935,8 +1022,11 @@ def build_arg_parser():
     parser.add_argument("--max_model_len", default=6400, type=int, help="Max Model Len (default is set to 6400).")
     parser.add_argument("--quantization", type=int, default=0, help="Whether a quantized model is being loaded.")
     parser.add_argument("--gpus", type=int, default=1, help="Number of GPUs to use")
+    parser.add_argument("--max_memory", type=float, default=0.9, help="Percentage of VRAM to use")
     parser.add_argument("--seed", type=int, default=-1, help="Default seed to use for vllm, if -1 then a None / random seed will be chosen.")
 
+
+    
     # 
     parser.add_argument("--silent", action="store_true", default=False, help="Whether to suppress messages during the game loop.")
 
@@ -958,6 +1048,11 @@ if __name__=="__main__":
     # 1. Tokens generated / consumed (i.e. estimated price)
     # 2. Time taken
 
+    # import os, pathlib
+    # p = os.path.expandvars('$ALFWORLD_DATA/json_2.1.1/train')
+    # print(">>> ALFWorld will walk:", pathlib.Path(p).resolve())
+    
+    # raise ValueError
 
     ####################################################
     # BASIC CONFIGURATION
@@ -968,7 +1063,6 @@ if __name__=="__main__":
 
     TEST_ENV = False
     # TEST_ENV = True
-
 
     parser = build_arg_parser()
     args = parser.parse_args()
@@ -981,6 +1075,11 @@ if __name__=="__main__":
         CURRENT_TRIAL_NAME = args.trial_name
     else:
         CURRENT_TRIAL_NAME = "v3_0_eval_test"
+    
+    if args.expel_stage == "gather":
+        EXPERIENCE_DIR = os.path.join(BASE_FOLDER, BASE_EVAL_NAME + "_" + args.trial_name)
+        EXPERIENCE_DIR = os.path.join(EXPERIENCE_DIR, "exps")
+        Path(EXPERIENCE_DIR).mkdir(parents=True, exist_ok=True)
 
     ###############################
 # TODO:
@@ -1044,14 +1143,22 @@ if __name__=="__main__":
     else:
         KEYS_TO_USE = ""
 
-
-    prompt_name2 = get_prompt_example(
-        agent_type= AGENT_TYPE,
-        version = VERSION,
-        prompt_ids = PROMPT_IDS,
-        env_type="",
-        generate_prompt=False,
-        keys_to_use=KEYS_TO_USE)
+    if args.expel_trial_type == 3:
+        prompt_name2 = get_prompt_example(
+            agent_type= AGENT_TYPE,
+            version = VERSION,
+            prompt_ids = PROMPT_IDS,
+            env_type="",
+            generate_prompt=False,
+            keys_to_use=["goal","hints","locations_visited","current_location","current_inventory","thought","action"])
+    else:
+        prompt_name2 = get_prompt_example(
+            agent_type= AGENT_TYPE,
+            version = VERSION,
+            prompt_ids = PROMPT_IDS,
+            env_type="",
+            generate_prompt=False,
+            keys_to_use=KEYS_TO_USE)
 
     ##############################
     # Checking settings with the user. User needs to type y.
@@ -1124,6 +1231,7 @@ if __name__=="__main__":
         "total_in_token_message_accumulated", #Total number of in message tokens accumulated
         "total_out_token_accumulated", #Total number of tokens of the entire history (measured at the end)
         "total_history_token",
+        "total_retrieval_token", #Retrieval tokens
         # VARIOUS FLAGS and ADDITIONAL DESCRIPTIONS
         "correction", #boolean flag
         "resample", #boolean flag,
@@ -1131,7 +1239,8 @@ if __name__=="__main__":
         "keys_to_use",
         "additional_prompt_annotation",
         "trace_file",
-        "prompt_file"
+        "prompt_file",
+        "env_reference"
     ]
 
 
@@ -1175,7 +1284,10 @@ if __name__=="__main__":
         max_model_len=args.max_model_len,
         quantization=bool(args.quantization),
         tensor_parallel_size=args.gpus,
-        seed=SEED
+        max_memory=args.max_memory,
+        seed=SEED,
+        enable_lora=args.enable_lora,
+        lora_path=args.lora_path,
     )
     
     agent.update_save_path(SAVE_FOLDER)
@@ -1235,7 +1347,6 @@ if __name__=="__main__":
     env = env.init_env(batch_size=1)
 
 
-
     # Skipping Envs
     for i in range(start_env_idx):
         observation, info = env.reset()
@@ -1246,15 +1357,37 @@ if __name__=="__main__":
 
     # input(">")
 
+    if args.expel_stage == "eval":
+        if args.retrieval_method == "llm":
+            retrieval_agent, retrieval_model = get_agent_and_model(
+                llm_type=llm_type, 
+                temperature=temperature, 
+                proposed_model="Qwen/Qwen2.5-7B-Instruct", 
+                force_model=args.force_model,
+                # max_model_len=args.max_model_len,
+                max_model_len=4096,
+                quantization=True,
+                tensor_parallel_size=args.gpus,
+                max_memory=0.20,
+                seed=SEED
+            )
+        else:
+            retrieval_agent = None
+            retrieval_model = None
+        # store = ExperienceStore(args.exp_dir) #This if needed...
+        # store = json.load(open(args.exp_dir, "r"))
 
+        rules = json.load(open(args.rules_path))     # path to rules.json
+        store_rule = RuleStore(rules, method=args.retrieval_method, agent=retrieval_agent)
+        # store_rule  = RuleStore(rules, method="llm", agent=agent)
 
+        
     #######################################################
     # RUNNING The Trial
     #######################################################
     # Running Trial
     for env_idx in range(num_envs):
-
-
+        
         #######################################################
         # ENV Init
         #######################################################
@@ -1279,16 +1412,57 @@ if __name__=="__main__":
         #######################################################
         # PROMPT Related
         #######################################################
-        prompt_name, prompt_example, new_base_prompt, num_examples = get_prompt_example(
-            agent_type=AGENT_TYPE,
-            env_type=env_type,
-            prompt_ids=PROMPT_IDS,
-            version=VERSION,
-            generate_prompt=True,
-            keys_to_use=KEYS_TO_USE
-        )
+        if args.expel_trial_type == 3:
+            prompt_name, prompt_example, new_base_prompt, num_examples = get_prompt_example(
+                agent_type=AGENT_TYPE,
+                env_type=env_type,
+                prompt_ids=PROMPT_IDS,
+                version=VERSION,
+                generate_prompt=True,
+                keys_to_use=["goal","hints","locations_visited","current_location","current_inventory","thought","action"]
+            )
+        else:
+            prompt_name, prompt_example, new_base_prompt, num_examples = get_prompt_example(
+                agent_type=AGENT_TYPE,
+                env_type=env_type,
+                prompt_ids=PROMPT_IDS,
+                version=VERSION,
+                generate_prompt=True,
+                keys_to_use=KEYS_TO_USE
+            )
+        # expel part
+        if args.expel_stage == "eval":
+            # retrieved = store.nearest(observation, k=2)
+            retrieved = ""
+            if args.expel_prompt_mode == "retrieve":
+                retrieved_rules, rules_token_count_dict = store_rule.nearest(observation, k=args.k_rules, env_type = env_type)
+                
+                # similar_trajectories = ""
+                # expel_prompt = retrieved_rules
+                expel_prompt, similar_trajectories = build_expel_prompt(retrieved, retrieved_rules, args.expel_prompt_mode, args.expel_trial_type)
+            else:
+                expel_prompt, similar_trajectories = build_expel_prompt(retrieved, rules, args.expel_prompt_mode, args.expel_trial_type)
+        else:
+            expel_prompt = ""
+            similar_trajectories = ""
+        # expel_prompt = ""
+        # similar_trajectories = ""
+        # end
+        # prompt = generate_prompt_from_example(prompt_example, number_of_examples=num_examples, base_prompt=new_base_prompt)
 
-        prompt = generate_prompt_from_example(prompt_example, number_of_examples=num_examples, base_prompt=new_base_prompt)
+        prompt = generate_prompt_from_example(prompt_example, number_of_examples=num_examples, base_prompt=new_base_prompt, hints=expel_prompt, trajectories=similar_trajectories)
+        # prompt = generate_prompt_from_example(similar_trajectories, number_of_examples=num_examples, base_prompt=new_base_prompt, hints=expel_prompt, trajectories=similar_trajectories)
+
+
+        # prompt = generate_prompt_from_example(prompt_example, number_of_examples=num_examples, base_prompt=new_base_prompt)
+
+        # # right after you build few-shot prompt
+        # prompt = prompt + [
+        #     {"role": "system", "content":
+        #         expel_prompt + "\n Here is the task.   "
+        #     }
+        # ]
+
         agent.set_base_prompt_and_reset(prompt)
 
         # ###
@@ -1296,8 +1470,10 @@ if __name__=="__main__":
         now = datetime.now()
         prompt_save_path = os.path.join(SAVE_FOLDER, "prompt_"+now.strftime("%d_%m_%Y_%H_%M_%S")+".txt")
 
+        # raw_prompt = generate_prompt_from_example(prompt_example, return_raw_prompt=True, number_of_examples=num_examples, base_prompt=new_base_prompt)
 
-        raw_prompt = generate_prompt_from_example(prompt_example, return_raw_prompt=True, number_of_examples=num_examples, base_prompt=new_base_prompt)
+        raw_prompt = generate_prompt_from_example(prompt_example, return_raw_prompt=True, number_of_examples=num_examples, base_prompt=new_base_prompt, hints=expel_prompt, trajectories=similar_trajectories)
+        # raw_prompt = generate_prompt_from_example(prompt_example, return_raw_prompt=True, number_of_examples=num_examples, base_prompt=new_base_prompt) + expel_prompt
         save_prompt_file(prompt_save_path, raw_prompt)
         total_prompt_tokens = agent.count_tokens(raw_prompt)
 
@@ -1375,28 +1551,58 @@ if __name__=="__main__":
         total_out_token = 0
         total_in_message_token = 0
         total_token = 0
-
+        total_retrieval_token = 0
+        
+        if args.expel_stage == "eval":
+            total_retrieval_token += rules_token_count_dict["in_token_message"] + rules_token_count_dict["out_token_action"]
+            # total_in_token += rules_token_count_dict["in_token_all"]
+            # total_in_message_token += rules_token_count_dict["in_token_message"]
+            
+        # for expel
+        trajectory = []       # current episode
+        agent_thoughts = []   # store the raw LLM messages 
+        # end
 
         # for resampling
         CURRENT_NOTHING_HAPPENS = False
 
         error_count = 0
 
+        hints_once = False
+        start_step = True
+        rules_step = ""
         #######################################################
         # Main Game Loop
         #######################################################
         try:
             while game_running_flag:
-
                 was_command = False
                 valid_json = False
                 is_nothing_happens = False
 
                 continue_flag = False
 
-                # #####################
+                #####################
                 # Action related
-                action, token_count_dictionary = agent.act(f"{INPUT_TOKEN}"+observation+f"{OUTPUT_TOKEN}", return_token_count=True)
+                # -------------------------------------------------------------
+                # decide which rules are active this turn (ExpeL Part)
+                # -------------------------------------------------------------
+                if args.expel_stage == "eval" and hints_once:
+                    if args.expel_prompt_mode == "retrieve":          # k-NN per step
+                        active_rules = store_rule.assistance_nearest(observation, k=1)
+                    else:                                             # all_rules mode
+                        active_rules = rules                          # loaded earlier
+                    # print("activerules: ", active_rules, "END of RULES")
+                    if active_rules == "NONE":
+                        rules_step = ""
+                    else:
+                        rules_step, _ = build_expel_prompt("", active_rules, args.expel_prompt_mode, 5)
+                        
+                    hints_once = False
+
+                # -------------------------------------------------------------
+
+                action, token_count_dictionary = agent.act(f"{INPUT_TOKEN}"+observation+rules_step+f"{OUTPUT_TOKEN}", return_token_count=True)
 
                 total_in_token += token_count_dictionary["in_token_all"]
                 total_in_message_token += token_count_dictionary["in_token_message"]
@@ -1441,7 +1647,7 @@ if __name__=="__main__":
                         if is_jsonreact_thought(action, version=VERSION): #Done
                             observation = get_observation_jsonreact_thought() #Done
                             if not SILENT_MODE:
-                                print("<> OBSERVATION <>:"+observation)
+                                print("<> OBSERVATION <>:"+observation+rules_step)
                             continue_flag = True
 
                         actual_action, was_command, valid_json = get_action_jsonreact(action, version=VERSION, key="action") #Done
@@ -1459,7 +1665,7 @@ if __name__=="__main__":
                         if is_react_thought(action): #Done
                             observation = get_observation_react_thought() #Done
                             if not SILENT_MODE:
-                                print("<> OBSERVATION <>:"+observation)
+                                print("<> OBSERVATION <>:"+observation+rules_step)
                             continue_flag = True
 
                         actual_action = action
@@ -1533,11 +1739,44 @@ if __name__=="__main__":
                 # ###################################
                 # Observation Related.
                 # ###################################
+                step_record = {"obs_before": observation, "raw_action": action} # For ExpeL
                 observation, reward, done, info = env.step([actual_action])
                 total_reward += reward[0]
 
+                # ExpeL Part
+                step_record.update({
+                    "parsed_action": actual_action,
+                    "obs_after": observation[0],
+                    "reward": reward[0],
+                })
+                trajectory.append(step_record)
+                agent_thoughts.append(action)
+                # End
 
                 observation, is_nothing_happens = process_ob(observation[0], track_nothing_happens=True)
+
+                #####################
+                # Action related
+                # -------------------------------------------------------------
+                # decide which rules are active this turn (ExpeL Part)
+                # -------------------------------------------------------------
+                if args.expel_stage == "eval" and (args.rules_every_step or hints_once) and not start_step and num_current_repetitions >= 2:
+                    if args.expel_prompt_mode == "retrieve":          # k-NN per step
+                        active_rules = store_rule.assistance_nearest(observation, k=1)
+                    else:                                             # all_rules mode
+                        active_rules = rules                          # loaded earlier
+                    # print("activerules: ", active_rules, "END of RULES")
+                    if active_rules == "NONE":
+                        rules_step = ""
+                    else:
+                        rules_step, _ = build_expel_prompt("", active_rules, args.expel_prompt_mode, 5)
+                        
+                    hints_once = False
+                else:
+                    rules_step = ""                                   # no rules in non-eval stages
+                start_step = False
+                # -------------------------------------------------------------
+                
                 if is_nothing_happens:
                     num_nothing_happens += 1
                     CURRENT_NOTHING_HAPPENS = True
@@ -1547,9 +1786,10 @@ if __name__=="__main__":
 
                 if not SILENT_MODE:
                     print("<> OBSERVATION <>:"+observation)
-                    print(info["won"][0])
-                    print(done[0])
-                    print(reward[0])
+                    print(rules_step)
+                    print("Success:", info["won"][0])
+                    print("Complete:", done[0])
+                    print("Reward:", reward[0])
 
                 if done[0] or info["won"][0]:
                     if info["won"][0]:
@@ -1602,7 +1842,7 @@ if __name__=="__main__":
             logging_dict["total_in_token_message_accumulated"] = total_in_message_token
             logging_dict["total_out_token_accumulated"] = total_out_token
             logging_dict["total_history_token"] = agent.count_tokens()
-
+            logging_dict["total_retrieval_token"] = total_retrieval_token
             # Prompt Name Logging
             logging_dict["prompt_name"] = prompt_name
             logging_dict["keys_to_use"] = KEYS_TO_USE
@@ -1610,7 +1850,9 @@ if __name__=="__main__":
             #File Loggin
             logging_dict["trace_file"] = agent.file_name
             logging_dict["prompt_file"] = prompt_save_path
+            logging_dict["env_reference"] = name
             logging_dict["additional_prompt_annotation"] = additional_prompt_annotation
             write_line_to_main_log_csv(MAIN_CSV_FILEPATH, logging_dict)
             print(logging_dict)
+
             agent.save()
