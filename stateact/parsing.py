@@ -124,19 +124,27 @@ def general_action_cleaning(action):
     return action
 
 def json_action_cleaning(action):
-    """Action Cleaning for json."""
+    """Action Cleaning for json.
+
+    Strips a leading/trailing Markdown code fence.  Only the fence itself is
+    removed (rather than every occurrence of ```), and the trailing brace is
+    appended only when the remaining text really does not end with one.  The
+    old implementation appended ``}`` after stripping the trailing fence,
+    which turned an otherwise valid fenced object into invalid JSON.
+    """
     action = action.strip()
     if action.startswith("```json"):
-        action = action.replace("```json","")
-
-    if action.startswith("```"):
-        action = action.replace("```","")
+        action = action[len("```json"):]
+    elif action.startswith("```"):
+        action = action[3:]
 
     if action.endswith("```"):
-        action = action.replace("```","")
+        action = action[:-3]
+
+    action = action.strip()
 
     if not action.endswith("}"):
-        action+="\n}\n"
+        action += "\n}\n"
 
     return action
 
@@ -167,80 +175,49 @@ def is_agentbench_thought(action):
 
 
 
+def _get_action_json(action, key="action"):
+    """Shared implementation of the two JSON extractors.
+
+    Tries a real JSON parse first, then falls back to substring splitting for
+    the slightly malformed objects the models occasionally emit.
+    """
+    actual_action = action
+    was_command = False
+    valid_json = False
+    try:
+        data = json.loads(action.strip())
+        valid_json = True
+        potential_action = data.get(key)
+        if potential_action:
+            actual_action = potential_action
+            was_command = True
+    except Exception:
+        for separator in (f'"{key}" : "', f'"{key}": "', f'"{key}":"'):
+            if separator in action:
+                was_command = True
+                actual_action = action.split(separator)[1].split('"')[0]
+                print(f"Extracted Action:{actual_action}")
+                break
+
+    return actual_action, was_command, valid_json
+
+
 def get_action_jsonreact(action, version=1, key="action"):
     """
     Extracts 'actual_action' from action.
 
-    'key' is not used at the moment.
+    ``version=1`` always uses the ``action`` key; later versions honour the
+    ``key`` argument.
     """
-    if version==1:
+    if version == 1:
         key = "action"
 
-    actual_action = action
-    was_command = False
-    valid_json = False
-    try:
-        data = json.loads(action.strip())
-        valid_json = True
-        potential_action = data.get(key)
-        if potential_action:
-            actual_action = potential_action
-            was_command = True
-    except Exception as e:
-        if (f'"{key}" : "' in action):
-            was_command = True
-            actions = action.split(f'"{key}" : "')
-            actual_action = actions[1].split('"')[0]
-            print(f"Extracted Action:{actual_action}")
-
-        elif (f'"{key}": "' in action):
-            was_command = True
-            actions = action.split(f'"{key}": "')
-            actual_action = actions[1].split('"')[0]
-            print(f"Extracted Action:{actual_action}")
-
-        elif (f'"{key}":"' in action):
-            was_command = True
-            actions = action.split(f'"{key}":"')
-            actual_action = actions[1].split('"')[0]
-            print(f"Extracted Action:{actual_action}")
-
-    return actual_action, was_command, valid_json
-
+    return _get_action_json(action, key)
 
 
 def get_action_jsonstate(action, key="action"):
-    """Extracts 'actual_action' from action. """
-    actual_action = action
-    was_command = False
-    valid_json = False
-    try:
-        data = json.loads(action.strip())
-        valid_json = True
-        potential_action = data.get(key)
-        if potential_action:
-            actual_action = potential_action
-            was_command = True
-    except Exception as e:
-        if (f'"{key}" : "' in action):
-            was_command = True
-            actions = action.split(f'"{key}" : "')
-            actual_action = actions[1].split('"')[0]
-            print(f"Extracted Action:{actual_action}")
-
-        elif (f'"{key}": "' in action):
-            was_command = True
-            actions = action.split(f'"{key}": "')
-            actual_action = actions[1].split('"')[0]
-            print(f"Extracted Action:{actual_action}")
-
-        elif (f'"{key}":"' in action):
-            was_command = True
-            actions = action.split(f'"{key}":"')
-            actual_action = actions[1].split('"')[0]
-            print(f"Extracted Action:{actual_action}")
-
-    return actual_action, was_command, valid_json
+    """Extracts 'actual_action' from action."""
+    return _get_action_json(action, key)
 
 
 def get_action_stringstate(action, key="action"):

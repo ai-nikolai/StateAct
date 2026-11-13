@@ -750,9 +750,13 @@ if __name__=="__main__":
                 if OUR_TEXT_PROMPTS:
                     action = our_text_action_cleaning(action) #Done
 
-                    if AGENT_TYPE =="ours-text":
+                    # "stateact" and "act" are the same text format as
+                    # "ours-text" (see stateact.prompts.AGENT_TYPES); omitting
+                    # them left actual_action unbound for those --agent values.
+                    if (AGENT_TYPE in ("ours-text", "stateact", "act")
+                            and llm_type.lower() != "manual"):
                         actual_action, was_command = get_action_stringstate(action, key="action") #TODO
-                    
+
                     elif llm_type.lower()=="manual":
                         actual_action, was_command = action, True
                 

@@ -216,15 +216,22 @@ def default_alfworld_builders():
 
 
 def get_prompt_example(agent_type, env_type, prompt_ids, version, generate_prompt=True,
-                       keys_to_use=[], key_renaming={}, builders=None):
+                       keys_to_use=None, key_renaming=None, builders=None):
     """ Get name of prompt and example prompts.
 
     ``builders`` maps agent_type -> builder callable; it defaults to the
     ALFWorld builders (see :func:`default_alfworld_builders`) and can be
     injected so that other environments/tests can reuse the dispatch.
+
+    ``keys_to_use`` / ``key_renaming`` default to ``None`` rather than a shared
+    mutable ``[]`` / ``{}`` so a caller cannot accidentally mutate the default
+    used by a later call.
     """
     if agent_type not in AGENT_TYPES:
         raise NotImplementedError(f"Trying to call agent_type: {agent_type}, but it doesn't exist.")
+
+    keys_to_use = list(keys_to_use or [])
+    key_renaming = dict(key_renaming or {})
 
     new_base_prompt = ""
     num_examples = len(prompt_ids)
