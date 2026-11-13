@@ -53,8 +53,10 @@ DEFAULT_MAX_RETRIES = 4
 
 
 def _as_list(value):
-    if value is None or isinstance(value, list):
-        return value
+    if value is None:
+        return None
+    if isinstance(value, (list, tuple)):
+        return list(value)
     return [value]
 
 
