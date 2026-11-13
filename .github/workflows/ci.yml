@@ -43,6 +43,9 @@ jobs:
           textcraft_runs/run_textcraft_thread.py
           webshop_runs/run_webshop_adapted.py
 
+      - name: Check the PBS scripts
+        run: bash -n scripts/submit_pbs.sh scripts/pbs/*.pbs
+
   test:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
