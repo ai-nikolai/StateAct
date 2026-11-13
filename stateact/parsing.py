@@ -3,8 +3,7 @@
 This module holds the string-level parsing helpers that extract a concrete
 action from an LLM response, and the helpers that normalise environment
 observations.  It is deliberately dependency-free (only the standard library)
-so it can be imported and unit-tested without alfworld / vllm / llamp
-installed.
+so it can be imported and unit-tested without alfworld or vllm installed.
 
 The functions here were extracted verbatim from
 ``alfworld_runs/alfworld_run.py`` so that behaviour is bit-for-bit unchanged;
