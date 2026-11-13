@@ -27,13 +27,26 @@ python3 Webshop_adapted.py
 ```
 
 ```bash
-python3 WebShop_adapted.py \
+python3 run_webshop_adapted.py \
     --llm_type LOCAL \
     --socket ./tmp/webshop.sock \
     --model_local "Qwen/Qwen2.5-0.5B-Instruct" \
     --start 0 \
-    --num_env 30 \
+    --num_envs 30 \
     --agent react
+```
+
+API / URL models use the same `requests` backend as ALFWorld (no OpenAI or
+Anthropic SDK needed):
+
+```bash
+python3 run_webshop_adapted.py \
+    --llm_type CHAT \
+    --agent stateact \
+    --llm_url "https://api.example.com/v1/chat/completions" \
+    --llm_api_key_env "MY_API_KEY" \
+    --socket ./tmp/webshop.sock \
+    --start 0 --num_envs 30
 ```
 
 

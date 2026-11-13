@@ -42,6 +42,28 @@ python3 get_score.py --trial_name "baseline_14B"
 Overall (mean) Score: 0.805970 with 108 successful envs and a total of 134 envs.
 ```
 
+### API / URL models (no provider SDK)
+
+Any OpenAI-compatible endpoint can be used through the built-in
+`requests` backend:
+
+```bash
+python3 alfworld_run.py \
+    --agent "stateact" \
+    --llm_type "URLChat" \
+    --model "my-model" \
+    --llm_url "https://api.example.com/v1/chat/completions" \
+    --llm_api_key_env "MY_API_KEY" \
+    --trial_name "url_test" \
+    --start_index 0 --num_envs 1 \
+    --keys_to_use '["goal","thought","action"]' \
+    --force_run
+```
+
+The legacy names (`OpenAIChatText`, `NvidiaChatText`, ...) still work as
+aliases with their default endpoint and key variable. `VLLMChat` is the local
+backend.
+
 ---
 
 ## More Options:

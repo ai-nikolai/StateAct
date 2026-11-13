@@ -8,7 +8,17 @@ pip3 install -r requirements.txt
 
 2. Run:
 ```bash
-python3 run_textcraft.py
+python3 run_textcraft_adapt.py --llm_type LOCAL --model_local Qwen/Qwen2.5-3B-Instruct
+```
+
+For an API / URL model (no OpenAI SDK needed):
+
+```bash
+python3 run_textcraft_adapt.py \
+    --llm_type GPT \
+    --llm_url "https://api.example.com/v1/completions" \
+    --llm_api_key_env "MY_API_KEY" \
+    --agent_type stateact
 ```
 
 
