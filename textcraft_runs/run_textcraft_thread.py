@@ -5,12 +5,16 @@ import time
 import re
 import gc
 import os
-import openai
 import yaml
 import sys
 import numpy as np
 import pandas as pd
 import json
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+from stateact.agents import url_chat, url_completion  # noqa: E402
 
 
 
@@ -28,7 +32,8 @@ model_name="gpt-3.5-turbo-instruct"
 
 
 
-API_KEY = os.environ["OPENAI_API_KEY"]
+API_KEY = os.environ.get("OPENAI_API_KEY")
+LLM_URL = os.environ.get("STATEACT_LLM_URL")
 # HF_auth_token = ...
 # cache_dir=...
 
@@ -161,102 +166,23 @@ if 'gpt' not in model_name.lower():
         return gen_tok
     # 
 else:
-    openai.api_key = API_KEY
-    if model_name=='gpt-3.5-turbo-instruct':
-        def llm(prompt, stop=["\n"], max_new_tokens_=1000, temp=0):
-            # time.sleep(1)
-            global model_name
-            global completion_error
-            global completion_response
-            # max_new_tokens_=500
-            # max_new_tokens_=1000
-            continue_trying=True
-            while(continue_trying):
-                try:
-                    print('max_new_tokens_: '+str(max_new_tokens_))
-                    if temp==0:
-                        completion_response = openai.Completion.create(
-                        model=model_name,
-                        prompt=prompt,
-                        temperature=0,
-                        max_tokens=max_new_tokens_,
-                        top_p=1,
-                        frequency_penalty=0.0,
-                        presence_penalty=0.0,
-                        stop=stop, 
-                        request_timeout=20
-                        )
-                        continue_trying=False
-                    else:
-                        completion_response = openai.Completion.create(
-                        model=model_name,
-                        prompt=prompt,
-                        temperature=temp,
-                        max_tokens=max_new_tokens_,
-                        stop=stop, 
-                        request_timeout=20
-                        )
-                        continue_trying=False
-                except openai.error.OpenAIError as e:
-                    completion_error=e
-                    print(completion_error)
-                    if 'Rate limit reached' in str(completion_error):
-                        # in case time is redefined elsewhere
-                        import time
-                        time.sleep(10)
-                    elif 'maximum context length' in str(completion_error):
-                        if max_new_tokens_>500:
-                            max_new_tokens_=max_new_tokens_-150
-                        elif max_new_tokens_<50:
-                            max_new_tokens_=max_new_tokens_-5
-                            if max_new_tokens_ < 5:
-                                continue_trying=False
-                        else:
-                            max_new_tokens_=max_new_tokens_-50
-                    elif 'timeout' in str(completion_error):
-                        continue_trying = True
-                    else:
-                        continue_trying=False
-            return completion_response["choices"][0]["text"]
-    else:
-        def llm(prompt, stop=["\n"], max_new_tokens_=1000, temp=0):
-            global model_name
-            global completion_error
-            continue_trying=True
-            messages_= [
-                {"role": "user", "content": prompt}
-                ]  
-            while(continue_trying):
-                try:
-                    print('max_new_tokens_: '+str(max_new_tokens_))
-                    completion = openai.ChatCompletion.create(
-                    model=model_name,
-                    temperature=temp,
-                    stop=stop,
-                    messages=messages_,
-                    request_timeout=60)
-                    continue_trying=False
-                except openai.error.OpenAIError as e:
-                    completion_error=e
-                    print(completion_error)
-                    if 'Rate limit reached' in str(completion_error):
-                        # in case time is redefined elsewhere
-                        import time
-                        time.sleep(15)
-                    elif 'maximum context length' in str(completion_error):
-                        if max_new_tokens_>500:
-                            max_new_tokens_=max_new_tokens_-150
-                        elif max_new_tokens_<50:
-                            max_new_tokens_=max_new_tokens_-5
-                            if max_new_tokens_ < 5:
-                                continue_trying=False
-                        else:
-                            max_new_tokens_=max_new_tokens_-50
-                    elif 'timeout' in str(completion_error):
-                        continue_trying = True
-                    else:
-                        continue_trying=False
-            return completion.choices[0].message.content
+    def llm(prompt, stop=["\n"], max_new_tokens_=1000, temp=0):
+        """URL model; retries and HTTP errors are handled by stateact.agents."""
+        print('max_new_tokens_: ' + str(max_new_tokens_))
+        kwargs = dict(
+            temperature=temp,
+            stop=stop,
+            max_tokens=max_new_tokens_,
+            api_key=API_KEY,
+            api_key_env="OPENAI_API_KEY",
+        )
+        if 'instruct' in model_name or 'davinci' in model_name:
+            url = LLM_URL or "https://api.openai.com/v1/completions"
+            return url_completion(url, model_name, prompt, **kwargs)
+        url = LLM_URL or "https://api.openai.com/v1/chat/completions"
+        return url_chat(
+            url, model_name, [{"role": "user", "content": prompt}], **kwargs
+        )
 
 
 

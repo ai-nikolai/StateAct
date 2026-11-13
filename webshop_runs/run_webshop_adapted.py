@@ -3,9 +3,22 @@ import sys
 import argparse
 from datetime import datetime
 
+# Make the repository root importable (this script is run as a plain file).
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from stateact.agents import url_chat, url_completion  # noqa: E402
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--llm_type", type=str, default="NORMAL", choices=["NORMAL", "CHAT", "TROPIC", "LOCAL"])
+parser.add_argument("--llm_url", type=str, default=None,
+                    help="Override the chat/completions endpoint URL.")
+parser.add_argument("--llm_api_key_env", type=str, default=None,
+                    help="Environment variable holding the API key.")
+parser.add_argument("--llm_api_key", type=str, default=None,
+                    help="API key value (prefer --llm_api_key_env).")
 parser.add_argument("--socket", type=str)
 parser.add_argument("--model_local", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
 parser.add_argument("--start", type=int, default=0)
@@ -48,103 +61,69 @@ MAX_PROMPT_LENGTH=min(args.max_model_len,6400)
 SEED = None if args.seed == -1 else args.seed
 print(f"The used seed: {SEED}")
 
-if LLM_TYPE=="NORMAL":
-  print("RUNNING OPENAI WITH TEXT MODEL")
+# All API models go through the same requests-based helper in
+# stateact.agents; only the default URL, key variable and message layout
+# differ. LOCAL still uses vLLM directly.
+API_KEY_ENV = args.llm_api_key_env
+API_KEY = args.llm_api_key
 
-  import openai
+if LLM_TYPE == "NORMAL":
+  print("RUNNING URL MODEL WITH TEXT/COMPLETIONS")
   MODEL = "gpt-3.5-turbo-instruct"
-  openai.api_key = os.environ["OPENAI_API_KEY"]
-  client = openai.OpenAI()
+  API_URL = args.llm_url or "https://api.openai.com/v1/completions"
+  API_KEY_ENV = API_KEY_ENV or "OPENAI_API_KEY"
+  API_MODE = "completion"
 
+elif LLM_TYPE == "CHAT":
+  print("RUNNING URL MODEL WITH CHAT")
+  MODEL = "gpt-3.5-turbo-1106"
+  API_URL = args.llm_url or "https://api.openai.com/v1/chat/completions"
+  API_KEY_ENV = API_KEY_ENV or "OPENAI_API_KEY"
+  API_MODE = "chat"
 
-elif LLM_TYPE=="CHAT":
-  print("RUNNING OPENAI WITH CHAT MODEL")
+elif LLM_TYPE == "TROPIC":
+  print("RUNNING URL MODEL WITH ANTHROPIC CHAT")
+  MODEL = "claude-3-5-sonnet-latest"
+  API_URL = args.llm_url or "https://api.anthropic.com/v1/chat/completions"
+  API_KEY_ENV = API_KEY_ENV or "ANTHROPIC_API_KEY"
+  API_MODE = "chat"
 
-  import openai
-  # MODEL = "gpt-3.5-turbo-0125" 
-  MODEL = "gpt-3.5-turbo-1106" 
-  openai.api_key = os.environ["OPENAI_API_KEY"]
-  client = openai.OpenAI()
-
-  # GPT_MODEL = "gpt-3.5-turbo-0125"
-  # GPT_MODEL = "gpt-3.5-turbo-1106"
-  # GPT_MODEL = "gpt-4-0613"
-  # GPT_MODEL = "gpt-3.5-turbo"
-  # MAX_PROMPT_LENGTH=128000
-
-
-elif LLM_TYPE=="TROPIC":
-  print("RUNNING ANTHROPIC WITH CHAT MODEL")
-
-  MODEL="claude-3-5-sonnet-latest"
-  import anthropic
-  client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-
-elif LLM_TYPE=="LOCAL":
+elif LLM_TYPE == "LOCAL":
   print("RUNNING LOCAL WITH VLLM Backend")
   from vllm import LLM, SamplingParams
-  MODEL= args.model_local
+  MODEL = args.model_local
 
 print(f"The used model is {MODEL}")
 
+
+def _url_call(prompt, stop, messages=None, headers=None):
+  kwargs = dict(
+    temperature=0,
+    stop=stop,
+    max_tokens=500,
+    api_key=API_KEY,
+    api_key_env=API_KEY_ENV,
+    headers=headers,
+  )
+  if API_MODE == "completion":
+    return url_completion(API_URL, MODEL, prompt, **kwargs)
+  return url_chat(API_URL, MODEL, messages, **kwargs)
+
+
 def llm(prompt, stop=["\n"]):
-    # MODEL = MODEL
-    # response = openai.Completion.create(
-    response = client.completions.create(
-      # model="text-davinci-002",
-      model=MODEL,
-      prompt=prompt,
-      temperature=0,
-      max_tokens=500,
-      top_p=1,
-      frequency_penalty=0.0,
-      presence_penalty=0.0,
-      stop=stop
-    )
-    # return response["choices"][0]["text"]
-    return response.choices[0].text
+  return _url_call(prompt, stop, messages=[{"role": "user", "content": prompt}])
 
 
 def llm_chat(prompt, stop=["\n"]):
-    # MODEL = MODEL
-    # MODEL = "gpt-4-turbo-preview"
-    chat_prompt = [
-            {
-                "role": "system", 
-                "content": prompt
-            }
-        ]
-    response = client.chat.completions.create(
-      model=MODEL,
-      messages=chat_prompt,
-      temperature=0,
-      max_tokens=500,
-      top_p=1,
-      frequency_penalty=0.0,
-      presence_penalty=0.0,
-      stop=stop
-    )
-    # return response["choices"][0]["text"]
-    return response.choices[0].message.content
+  return _url_call(prompt, stop, messages=[{"role": "system", "content": prompt}])
+
 
 def llm_tropic(prompt, stop=["\n"]):
-  chat_prompt = [
-          {
-              "role": "user", 
-              "content": prompt
-          }
-      ]
-  response = client.messages.create(
-    model=MODEL,
-    max_tokens = 500,
-    temperature = 0,
-    top_p=1,
-    # frequency_penalty=0.0,
-    # presence_penalty=0.0,
-    stop_sequences=stop,
-    messages = chat_prompt
+  return _url_call(
+    prompt, stop,
+    messages=[{"role": "user", "content": prompt}],
+    headers={"anthropic-version": "2023-06-01"},
   )
-  return response.content[0].text
 
 def local_llm_closure():
   # Initialize model with HF token authentication

@@ -8,13 +8,17 @@ that are shared between ALFWorld, WebShop and TextCraft:
 :mod:`stateact.parsing`
     Extraction of an action from a raw LLM response, plus observation
     normalisation.  Standard library only.
+:mod:`stateact.agents`
+    The agent implementations: local vLLM, one ``requests``-based URL backend
+    for OpenAI-compatible endpoints, and a manual agent. No provider SDKs.
 :mod:`stateact.llm`
-    Optional-import handling for the provider SDKs and construction of the
-    ``llamp`` agent for a given ``--llm_type``.
+    Maps ``--llm_type`` names to those agents and resolves the model.
 :mod:`stateact.prompts`
     Few-shot prompt assembly and the ``--agent`` -> prompt-builder dispatch.
 :mod:`stateact.scoring`
     Reading and aggregating the ``*_results.csv`` logs.
+:mod:`stateact.analysis`
+    Notebook-compatible helpers for ALFWorld, WebShop and TextCraft results.
 :mod:`stateact.run_config`
     Config-driven runner for the named experiments that used to live in
     ~1000-line ``if [ $1 == "name" ]`` shell scripts.

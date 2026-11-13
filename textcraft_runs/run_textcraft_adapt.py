@@ -21,9 +21,21 @@ from textcraft import TextCraft
 import random #for the seed
 import argparse
 
+# Make the repository root importable (this script is run as a plain file).
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+from stateact.agents import url_chat, url_completion  # noqa: E402
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--llm_type", type=str, default="LOCAL", choices=["GPT", "LOCAL"])
+parser.add_argument("--llm_url", type=str, default=None,
+                    help="Override the chat/completions endpoint URL.")
+parser.add_argument("--llm_api_key_env", type=str, default=None,
+                    help="Environment variable holding the API key.")
+parser.add_argument("--llm_api_key", type=str, default=None,
+                    help="API key value (prefer --llm_api_key_env).")
 parser.add_argument("--model_local", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
 parser.add_argument("--num_games", type=int, default=30)
 parser.add_argument("--max_model_len", type=int, default=16000)
@@ -62,14 +74,16 @@ print(f"The used seed: {SEED}")
 
 AGENT_TYPE = args.agent_type
 
-if LLM_TYPE=="GPT":
-    import openai
-    openai.api_key = os.environ["OPENAI_API_KEY"]
+if LLM_TYPE == "GPT":
     LM = 'gpt-3.5-turbo-instruct'
+    API_URL_TEXT = args.llm_url or "https://api.openai.com/v1/completions"
+    API_URL_CHAT = args.llm_url or "https://api.openai.com/v1/chat/completions"
+    API_KEY_ENV = args.llm_api_key_env or "OPENAI_API_KEY"
+    API_KEY = args.llm_api_key
 
-elif LLM_TYPE=="LOCAL":
-    LM=args.model_local
-    MAX_PROMPT_LENGTH=args.max_model_len
+elif LLM_TYPE == "LOCAL":
+    LM = args.model_local
+    MAX_PROMPT_LENGTH = args.max_model_len
 max_runs = 40
 # max_depth = 4
 # num_games = 200 #originally 200
@@ -87,89 +101,35 @@ Here [count] is a place holder for number of object, and [item] is placeholder f
 
 # @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(15))
 def llm(prompt, stop=["\n"], max_tokens=150, plan=False):
+    """Call the configured GPT/URL model (local models use a closure below)."""
     if plan:
-        max_tokens=800
-        stop=['\n\n']
+        max_tokens = 800
+        stop = ['\n\n']
     else:
-        max_tokens=150
-        stop=['\n']
-    if 'davinci' in LM or 'instruct' in LM:
-        if plan:
-            prompt= 'You are an helpful assistant helping me play a simple version of Minecraft. ' + prompt,
-        else:
-            prompt='You are a helpful assistant playing Minecraft\n' + environment_context + prompt,
-        response = openai.Completion.create(
-        model=LM,
-        prompt=prompt,
-        temperature=0,
-        max_tokens=max_tokens,
-        top_p=1,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        stop=stop
-        )
-        return response["choices"][0]["text"]
-    elif 'gpt-3.5-turbo' in LM or 'gpt-4' in LM:
-        if plan:
-            messages=[
-                {"role": "system", "content": 'You are an helpful assistant helping me play a simple version of Minecraft.'},
-                {"role": "user", "content": prompt}
-            ],
-        else:
-            messages=[
-            {"role": "system", "content": 'You are a helpful assistant playing Minecraft.' + environment_context},
-            {"role": "user", "content": prompt}
-            ],
-        response = openai.ChatCompletion.create(
-        model=LM,
-        messages=messages,
-        temperature=0,
-        max_tokens=max_tokens,
-        top_p=1,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        stop=stop
-        )
-        choices = response["choices"]
-        completion_objs = [choice.message for choice in choices]
-        completions = [completion.content for completion in completion_objs]
-        return completions[0]
+        max_tokens = 150
+        stop = ['\n']
 
-# @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(25))
-# def plan_llm(prompt, stop=["\n\n"]):
-#     if 'davinci' in LM or 'turbo-instruct' in LM:
-#       if isinstance(prompt, list): prompt = prompt[0]
-#       response = openai.Completion.create(
-#         model=LM,
-#         prompt= 'You are an helpful assistant helping me play a simple version of Minecraft. ' + prompt,
-#         temperature=0,
-#         max_tokens=800,
-#         top_p=1,
-#         frequency_penalty=0.0,
-#         presence_penalty=0.0,
-#         # stop=stop
-#       )
-#       return response["choices"][0]["text"]
-#     elif 'gpt-3.5-turbo' in LM or 'gpt-4' in LM:
-#       if isinstance(prompt, list): prompt = prompt[0]
-#       init_prmpt = 'You are an helpful assistant helping me play a simple version of Minecraft.'
-#       response = openai.ChatCompletion.create(
-#       model=LM,
-#       messages=[
-#         {"role": "system", "content": init_prmpt},
-#         {"role": "user", "content": prompt}
-#       ],
-#       temperature=0,
-#       max_tokens=800,
-#       top_p=1,
-#       frequency_penalty=0.0,
-#       presence_penalty=0.0,
-#       # stop=stop
-#       )
-#       choices = response["choices"]
-#       completion_objs = [choice.message for choice in choices]
-#       completions = [completion.content for completion in completion_objs]
-#       return completions[0]
+    if 'davinci' in LM or 'instruct' in LM:
+        prefix = ('You are an helpful assistant helping me play a simple version '
+                  'of Minecraft. ' if plan else
+                  'You are a helpful assistant playing Minecraft\n'
+                  + environment_context)
+        return url_completion(
+            API_URL_TEXT, LM, prefix + prompt,
+            temperature=0, max_tokens=max_tokens, stop=stop,
+            api_key=API_KEY, api_key_env=API_KEY_ENV,
+        )
+
+    system = ('You are an helpful assistant helping me play a simple version of '
+              'Minecraft.' if plan else
+              'You are a helpful assistant playing Minecraft.' + environment_context)
+    return url_chat(
+        API_URL_CHAT, LM,
+        [{"role": "system", "content": system},
+         {"role": "user", "content": prompt}],
+        temperature=0, max_tokens=max_tokens, stop=stop,
+        api_key=API_KEY, api_key_env=API_KEY_ENV,
+    )
 
 
 def local_llm_closure():

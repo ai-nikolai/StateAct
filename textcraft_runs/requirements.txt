@@ -2,12 +2,9 @@ textcraft>=0.0.3
 vllm==0.6.6.post1
 
 # Imports used directly by run_textcraft_adapt.py / run_textcraft_thread.py.
-# They were previously present only transitively (or missing entirely).
 tqdm>=4.66
 tenacity>=9.0
 numpy>=1.26
 pyyaml>=6.0
 pandas>=2.2
-openai>=1.0
-
-# openai==0.28.0 #this code is still setup to work with an older version of openai
+requests>=2.32

@@ -1,165 +1,156 @@
-"""Provider imports and ``llamp`` agent construction.
+"""Model selection for StateAct.
 
-The original ``alfworld_run.py`` had six near-identical ``try/except`` blocks
-(one per provider) and a ~170 line ``if/elif`` chain in ``get_agent_and_model``
-where twelve branches repeated the same "is the proposed model in the allowed
-list?" logic.
+There are only two backends:
 
-This module replaces both with:
+* ``local`` - a HuggingFace model served by vLLM (``VLLMChat``).
+* ``url`` - any OpenAI-compatible chat/completions endpoint (``URLChat``,
+  ``URLText``, plus the legacy provider names below).
+* ``manual`` - human input.
 
-* :func:`optional_import` - one helper for "import if the SDK is installed".
-* :data:`PROVIDERS` - a table describing, per ``--llm_type``: where the class
-  lives, its default model, whether it accepts ``temperature``, and which
-  models are allowed.
-* :func:`get_agent_and_model` - behaviourally identical to the original,
-  driven by that table.
-
-Installing every SDK is *not* required: a provider whose SDK is missing is
-simply reported as unavailable, exactly as before.
+No provider SDK is imported. The legacy ``--llm_type`` names are kept as
+aliases so existing experiment YAML and command lines keep working; they only
+change the default URL, API-key environment variable and prompt layout.
 """
 
-import importlib
+import importlib.util
+
+from stateact import agents
 
 __all__ = [
     "AGENT_MODEL_MAPPING",
     "PROVIDERS",
-    "optional_import",
     "available_providers",
     "get_agent_and_model",
 ]
 
-
-def optional_import(module_name, attributes):
-    """Import ``attributes`` from ``module_name`` if the SDK is installed.
-
-    Returns ``(objects, available)`` where ``objects`` is a dict mapping each
-    requested attribute name to the imported object (empty when unavailable).
-    Never raises: mirrors the original per-provider ``try/except`` blocks so a
-    missing SDK degrades to "provider unavailable" rather than a crash.
-    """
-    try:
-        module = importlib.import_module(module_name)
-    except Exception as exc:  # noqa: BLE001 - deliberately broad, SDKs vary
-        print(exc)
-        return {}, False
-
-    objects = {}
-    try:
-        for attribute in attributes:
-            objects[attribute] = getattr(module, attribute)
-    except AttributeError as exc:
-        print(exc)
-        return {}, False
-
-    return objects, True
-
-
-# Models that the original code accepts for each --llm_type. Kept verbatim so
-# that "proposed model not in list" warnings behave exactly as before.
+# Models accepted per --llm_type. A proposed model outside the list falls back
+# to the default unless --force_model is passed.
 AGENT_MODEL_MAPPING = {
-    "AnthropicChat" : ["claude-2.1", "claude-3-haiku-20240307", "claude-3-sonnet-20240229"],
-    "CohereChat" : ["command","command-nightly", "command-r", "command-r-plus"],
-    "OpenAIChat" : ["gpt-3.5-turbo-0125", "gpt-4-turbo-preview", "gpt-3.5-turbo-0301", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-1106"],
-    "AnthropicText" : ["claude-2.1", "claude-3-haiku-20240307", "claude-3-sonnet-20240229"],
-    "CohereText" : ["command","command-nightly", "command-r", "command-r-plus"],
-    "OpenAIText" : ["davinci-002", "gpt-3.5-turbo-instruct"],
-    "CohereChatText" : ["command","command-nightly", "command-r", "command-r-plus"],
-    "OpenAIChatText" : ["gpt-3.5-turbo-0125", "gpt-4-turbo-preview", "gpt-3.5-turbo-0301", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-1106", "gpt-4o-mini"],
-    "OpenAIChatTextSampling" : ["gpt-3.5-turbo-0125", "gpt-4-turbo-preview","gpt-3.5-turbo-0301", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-1106"],
-    "NvidiaChatText" :["mistralai/mixtral-8x22b-instruct-v0.1","meta/llama-3.1-8b-instruct","meta/llama-3.1-70b-instruct"],
-    "CerebrasChatText" :["llama3.1-8b","llama3.1-70b"],
-    "VLLMChat" : [
+    "URLChat": [
+        "gpt-3.5-turbo-0125",
+        "gpt-3.5-turbo-1106",
+        "gpt-4o-mini",
+    ],
+    "URLText": ["gpt-3.5-turbo-instruct", "davinci-002"],
+    "AnthropicChat": ["claude-2.1", "claude-3-haiku-20240307", "claude-3-sonnet-20240229"],
+    "AnthropicText": ["claude-2.1", "claude-3-haiku-20240307", "claude-3-sonnet-20240229"],
+    "CohereChat": ["command", "command-nightly", "command-r", "command-r-plus"],
+    "CohereText": ["command", "command-nightly", "command-r", "command-r-plus"],
+    "CohereChatText": ["command", "command-nightly", "command-r", "command-r-plus"],
+    "OpenAIChat": [
+        "gpt-3.5-turbo-0125",
+        "gpt-4-turbo-preview",
+        "gpt-3.5-turbo-0301",
+        "gpt-3.5-turbo-0613",
+        "gpt-3.5-turbo-1106",
+    ],
+    "OpenAIChatText": [
+        "gpt-3.5-turbo-0125",
+        "gpt-4-turbo-preview",
+        "gpt-3.5-turbo-0301",
+        "gpt-3.5-turbo-0613",
+        "gpt-3.5-turbo-1106",
+        "gpt-4o-mini",
+    ],
+    "OpenAIText": ["davinci-002", "gpt-3.5-turbo-instruct"],
+    "OpenAIChatTextSampling": [
+        "gpt-3.5-turbo-0125",
+        "gpt-4-turbo-preview",
+        "gpt-3.5-turbo-0301",
+        "gpt-3.5-turbo-0613",
+        "gpt-3.5-turbo-1106",
+    ],
+    "NvidiaChatText": [
+        "mistralai/mixtral-8x22b-instruct-v0.1",
+        "meta/llama-3.1-8b-instruct",
+        "meta/llama-3.1-70b-instruct",
+    ],
+    "CerebrasChatText": ["llama3.1-8b", "llama3.1-70b"],
+    "VLLMChat": [
         "Qwen/Qwen2.5-0.5B-Instruct",
-        "Qwen/Qwen2.5-1.5B-Instruct", 
+        "Qwen/Qwen2.5-1.5B-Instruct",
+        "Qwen/Qwen2.5-3B-Instruct",
+        "Qwen/Qwen2.5-7B-Instruct",
         "Qwen/Qwen2.5-14B-Instruct",
     ],
-    "Manual" : ["Manual"],
+    "Manual": ["Manual"],
 }
 
-
-# One row per --llm_type. Field meanings:
-#   module            : importable module holding the class
-#   cls               : class name inside that module
-#   default_model     : model used when none (or a disallowed one) is proposed
-#   pass_temperature  : whether the constructor takes temperature=...
-#   pass_model        : whether the constructor accepts model=...
-#   honor_proposed    : whether a proposed model overrides default_model.
-#                       NOTE: "AnthropicText" is False because the original
-#                       code assigned model = "claude-2.1" *after* the
-#                       proposed-model check, silently ignoring the proposal.
-#                       Preserved as-is so the refactor changes no behaviour;
-#                       see the report / ALFWorld README for the caveat.
+# Each row is one ``--llm_type``. ``cls`` is instantiated in
+# :func:`get_agent_and_model`; ``backend`` drives the availability check.
 PROVIDERS = {
-    "AnthropicChat": dict(
-        module="llamp.llms.api", cls="AnthropicChat",
-        default_model="claude-2.1", pass_temperature=True, honor_proposed=True),
-    "CohereChat": dict(
-        module="llamp.llms.api", cls="CohereChat",
-        default_model="command-r", pass_temperature=True, honor_proposed=True),
+    "URLChat": dict(
+        cls=agents.URLChatAgent, backend="url",
+        default_model="gpt-3.5-turbo-0125", honor_proposed=True,
+        accept_any_model=True),
+    "URLText": dict(
+        cls=agents.URLTextAgent, backend="url",
+        default_model="gpt-3.5-turbo-instruct", honor_proposed=True,
+        accept_any_model=True),
     "OpenAIChat": dict(
-        module="llamp.llms.api", cls="OpenAIChat",
-        default_model="gpt-3.5-turbo-0125", pass_temperature=True, honor_proposed=True),
-    "AnthropicText": dict(
-        module="llamp.llms.api", cls="AnthropicText",
-        default_model="claude-2.1", pass_temperature=True, honor_proposed=False),
-    "CohereText": dict(
-        module="llamp.llms.api", cls="CohereText",
-        default_model="command-r", pass_temperature=True, honor_proposed=True),
-    "OpenAIText": dict(
-        module="llamp.llms.api", cls="OpenAIText",
-        default_model="gpt-3.5-turbo-instruct", pass_temperature=True, honor_proposed=True),
-    "CohereChatText": dict(
-        module="llamp.llms.api", cls="CohereChatText",
-        default_model="command-r", pass_temperature=True, honor_proposed=True),
+        cls=agents.OpenAIChatAgent, backend="url",
+        default_model="gpt-3.5-turbo-0125", honor_proposed=True),
     "OpenAIChatText": dict(
-        module="llamp.llms.api", cls="OpenAIChatText",
-        default_model="gpt-3.5-turbo-0125", pass_temperature=True, honor_proposed=True),
+        cls=agents.OpenAIChatTextAgent, backend="url",
+        default_model="gpt-3.5-turbo-0125", honor_proposed=True),
     "OpenAIChatTextSampling": dict(
-        module="llamp.llms.api", cls="OpenAIChatTextSampling",
-        default_model="gpt-3.5-turbo-0125", pass_temperature=True, honor_proposed=True),
+        cls=agents.OpenAIChatTextSamplingAgent, backend="url",
+        default_model="gpt-3.5-turbo-0125", honor_proposed=True),
+    "OpenAIText": dict(
+        cls=agents.OpenAITextAgent, backend="url",
+        default_model="gpt-3.5-turbo-instruct", honor_proposed=True),
+    "AnthropicChat": dict(
+        cls=agents.AnthropicChatAgent, backend="url",
+        default_model="claude-2.1", honor_proposed=True),
+    "AnthropicText": dict(
+        cls=agents.AnthropicTextAgent, backend="url",
+        default_model="claude-2.1", honor_proposed=False),
+    "CohereChat": dict(
+        cls=agents.CohereChatAgent, backend="url",
+        default_model="command-r", honor_proposed=True),
+    "CohereText": dict(
+        cls=agents.CohereTextAgent, backend="url",
+        default_model="command-r", honor_proposed=True),
+    "CohereChatText": dict(
+        cls=agents.CohereChatTextAgent, backend="url",
+        default_model="command-r", honor_proposed=True),
     "NvidiaChatText": dict(
-        module="llamp.llms.api", cls="NvidiaChatText",
-        default_model="meta/llama-3.1-8b-instruct", pass_temperature=True, honor_proposed=True),
+        cls=agents.NvidiaChatTextAgent, backend="url",
+        default_model="meta/llama-3.1-8b-instruct", honor_proposed=True),
     "CerebrasChatText": dict(
-        module="llamp.llms.api", cls="CerebrasChatText",
-        default_model="llama3.1-8b", pass_temperature=True, honor_proposed=True),
+        cls=agents.CerebrasChatTextAgent, backend="url",
+        default_model="llama3.1-8b", honor_proposed=True),
     "VLLMChat": dict(
-        module="llamp.llms.local", cls="VLLMChat",
-        default_model="Qwen/Qwen2.5-0.5B-Instruct", pass_temperature=False, honor_proposed=True),
+        cls=agents.VLLMChatAgent, backend="local",
+        default_model="Qwen/Qwen2.5-0.5B-Instruct", honor_proposed=True),
     "Manual": dict(
-        module="llamp.llms", cls="Manual",
-        default_model="Manual", pass_temperature=False, honor_proposed=False,
-        pass_model=False),
+        cls=agents.ManualAgent, backend="manual",
+        default_model="Manual", honor_proposed=False),
 }
 
 
-# The import blocks in the original file reported availability in this order.
-_AVAILABILITY_REPORT = [
-    ("OpenAI", "llamp.llms.api", ("OpenAIChat", "OpenAIChatText", "OpenAIText", "OpenAIChatTextSampling")),
-    ("Anthropic", "llamp.llms.api", ("AnthropicChat", "AnthropicText")),
-    ("Cohere", "llamp.llms.api", ("CohereChat", "CohereChatText", "CohereText")),
-    ("Nvidia", "llamp.llms.api", ("NvidiaChatText",)),
-    ("Cerebras", "llamp.llms.api", ("CerebrasChatText",)),
-    ("VLLM", "llamp.llms.local", ("VLLMChat",)),
-]
+def _module_available(name):
+    try:
+        return importlib.util.find_spec(name) is not None
+    except (ImportError, ValueError):
+        return False
 
 
 def available_providers(verbose=True):
-    """Probe which provider SDKs can be imported.
+    """Return ``{"URL": bool, "VLLM": bool, "Manual": True}``.
 
-    Returns a dict like ``{"OpenAI": True, "VLLM": False, ...}`` and, when
-    ``verbose``, prints the same summary the original import block printed.
+    URL models need ``requests``; local models need ``vllm`` and
+    ``transformers``. Neither is required for the rest of the package.
     """
-    report = {}
-    for label, module_name, attributes in _AVAILABILITY_REPORT:
-        _objects, available = optional_import(module_name, attributes)
-        report[label] = available
-
+    report = {
+        "URL": _module_available("requests"),
+        "VLLM": _module_available("vllm") and _module_available("transformers"),
+        "Manual": True,
+    }
     if verbose:
-        print("End of imports. Imported:")
-        for label in ("OpenAI", "Anthropic", "Cohere", "Nvidia", "Cerebras", "VLLM"):
-            print(f"{label}: {report[label]}")
-
+        print("Model backends available:")
+        for name, ok in report.items():
+            print(f"  {name}: {ok}")
     return report
 
 
@@ -171,7 +162,9 @@ def _resolve_model(llm_type, proposed_model, force_model):
     if not proposed_model or not spec["honor_proposed"]:
         return model
 
-    if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
+    # Generic URL agents accept any model name (the endpoint defines what is
+    # valid); the legacy provider aliases keep the historical allow-list.
+    if spec.get("accept_any_model") or proposed_model in AGENT_MODEL_MAPPING[llm_type]:
         return proposed_model
 
     print("WARNING: Proposed Model is not in LIST!!!")
@@ -181,12 +174,14 @@ def _resolve_model(llm_type, proposed_model, force_model):
     return model
 
 
-def get_agent_and_model(llm_type, temperature=0.0, proposed_model="", force_model=False, **kwargs):
-    """Return ``(agent, model)`` for the given ``--llm_type``.
+def get_agent_and_model(llm_type, temperature=0.0, proposed_model="",
+                        force_model=False, llm_url=None, llm_api_key=None,
+                        llm_api_key_env=None, **kwargs):
+    """Return ``(agent, model)`` for ``--llm_type``.
 
-    Same contract and defaults as the original ``alfworld_run.py`` function:
-    unknown ``llm_type`` raises ``ValueError`` (the original raised
-    ``UnboundLocalError`` because no branch matched).
+    ``llm_url`` / ``llm_api_key`` / ``llm_api_key_env`` override the defaults
+    for URL-backed agents, which makes arbitrary OpenAI-compatible endpoints
+    usable without adding a provider. Unknown types raise ``ValueError``.
     """
     print(llm_type)
     print(proposed_model)
@@ -199,24 +194,34 @@ def get_agent_and_model(llm_type, temperature=0.0, proposed_model="", force_mode
 
     spec = PROVIDERS[llm_type]
     model = _resolve_model(llm_type, proposed_model, force_model)
+    backend = spec["backend"]
 
-    objects, available = optional_import(spec["module"], (spec["cls"],))
-    if not available:
+    if backend == "manual":
+        return spec["cls"](), model
+
+    if backend == "local":
+        if not available_providers(verbose=False)["VLLM"]:
+            raise ImportError(
+                "llm_type 'VLLMChat' needs vllm and transformers "
+                "(pip install -r alfworld_runs/requirements.txt)."
+            )
+        return spec["cls"](model=model, **kwargs), model
+
+    if not _module_available("requests"):
         raise ImportError(
-            f"llm_type {llm_type!r} needs {spec['module']}.{spec['cls']}, "
-            f"which could not be imported. Install that provider's SDK "
-            f"(see the relevant *_runs/requirements.txt)."
+            "URL-based models need the 'requests' package "
+            "(pip install requests)."
         )
 
-    agent_class = objects[spec["cls"]]
-    if spec.get("pass_model", True) is False:
-        # Manual takes no arguments at all.
-        agent = agent_class()
-    elif spec["pass_temperature"]:
-        agent = agent_class(temperature=temperature, model=model)
-    else:
-        # VLLMChat takes no temperature, but does take the vLLM kwargs
-        # (max_model_len, quantization, gpus, seed, ...).
-        agent = agent_class(model=model, **kwargs)
-
+    url = llm_url or kwargs.pop("url", None)
+    api_key = llm_api_key or kwargs.pop("api_key", None)
+    api_key_env = llm_api_key_env or kwargs.pop("api_key_env", None)
+    agent = spec["cls"](
+        temperature=temperature,
+        model=model,
+        url=url,
+        api_key=api_key,
+        api_key_env=api_key_env,
+        **kwargs,
+    )
     return agent, model

@@ -201,6 +201,8 @@ def build_arg_parser():
         type=str,
         default="OpenAIChatTextSampling",
         choices=[
+            "URLChat",
+            "URLText",
             "AnthropicChat",
             "CohereChat" ,
             "OpenAIChat" ,
@@ -215,8 +217,16 @@ def build_arg_parser():
             "VLLMChat",
             "Manual"
         ],
-        help="The type of llamp.llms to use.",
+        help="Model backend: local vLLM (VLLMChat), URL (URLChat/URLText), "
+             "a legacy provider alias, or Manual.",
     )
+
+    parser.add_argument("--llm_url", type=str, default=None,
+                        help="Override the chat/completions endpoint URL.")
+    parser.add_argument("--llm_api_key_env", type=str, default=None,
+                        help="Environment variable holding the API key.")
+    parser.add_argument("--llm_api_key", type=str, default=None,
+                        help="API key value (prefer --llm_api_key_env).")
 
     parser.add_argument("--agent_version", type=int, default=1, help="Method Version (if applicable)")
     parser.add_argument("--temperature", type=float, default=0.0, help="Temperature")
@@ -490,10 +500,13 @@ if __name__=="__main__":
         print("Strange Error with Model Params.")
         print(e)
     agent, actual_model = get_agent_and_model(
-        llm_type=llm_type, 
-        temperature=temperature, 
-        proposed_model=model, 
+        llm_type=llm_type,
+        temperature=temperature,
+        proposed_model=model,
         force_model=args.force_model,
+        llm_url=args.llm_url,
+        llm_api_key=args.llm_api_key,
+        llm_api_key_env=args.llm_api_key_env,
         max_model_len=args.max_model_len,
         quantization=bool(args.quantization),
         tensor_parallel_size=args.gpus,
