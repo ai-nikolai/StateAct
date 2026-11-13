@@ -408,7 +408,7 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
         observation, reward, done, _,  info = env.step(extracted_action)
         print(f"===\nObservation:\n---\n{observation}")
 
-        print(f"===\Reward & Done:\nreward:{reward}\ndone:{done}")
+        print(f"===\\Reward & Done:\nreward:{reward}\ndone:{done}")
 
 
         if 'task completed' in action.lower(): done = True; success = True
