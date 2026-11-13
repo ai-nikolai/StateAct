@@ -25,6 +25,7 @@ def test_add_repo_root_to_path():
 def test_public_modules_import_without_benchmark_dependencies():
     import stateact.agents
     import stateact.analysis
+    import stateact.envs
     import stateact.llm
     import stateact.parsing
     import stateact.prompts
@@ -34,6 +35,7 @@ def test_public_modules_import_without_benchmark_dependencies():
     assert stateact.parsing.__name__ == "stateact.parsing"
     assert stateact.agents.__name__ == "stateact.agents"
     assert stateact.analysis.__name__ == "stateact.analysis"
+    assert stateact.envs.__name__ == "stateact.envs"
     assert stateact.llm.__name__ == "stateact.llm"
     assert stateact.prompts.__name__ == "stateact.prompts"
     assert stateact.run_config.__name__ == "stateact.run_config"

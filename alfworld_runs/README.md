@@ -117,6 +117,10 @@ Overall (mean) Score: 0.746269 with 100 successful envs and a total of 134 envs.
 
 ---
 ## Footnotes: 
+The pinned versions are the current releases: `alfworld==0.4.2`,
+`textworld==1.7.0`, `fast-downward-textworld==20.6.4`. The text-only
+`AlfredTWEnv` adapter was verified against that combination.
+
 Footnote 1: Before `fast-downward-textworld==20.6.3` (Apr 25) the classical installation breaks the installation (you will need the commented CMAKE Var), like this:
 ```bash
 export CMAKE_POLICY_VERSION_MINIMUM=3.5 

@@ -1,4 +1,3 @@
-import yaml
 import csv
 import os
 import json
@@ -38,12 +37,9 @@ from stateact.parsing import (  # noqa: E402
 )
 
 
-# import alfworld
-# import alfworld.agents.environment
-
-import alfworld.agents.environment as environment
-from alfworld.agents.environment import get_environment
-# import alfworld.agents.modules.generic as generic
+# ALFWorld lives behind one small adapter so the run script does not depend on
+# the alfworld/textworld API directly.
+from stateact.envs.alfworld import AlfworldEnv  # noqa: E402
 
 # Provider imports and agent construction live in the shared `stateact.llm`
 # module (single optional-import helper + a registry, replacing the six
@@ -544,42 +540,8 @@ if __name__=="__main__":
     #######################################################
     # ENV Related
     #######################################################
-    # Old Stuff
-    # Env Init
-    # with open('playgrounds/base_config.yaml') as reader:
-    #     config = yaml.safe_load(reader)
-
-    # env = getattr(alfworld.agents.environment, config["env"]["type"])(config, train_eval=split)
-    # env = env.init_env(batch_size=1)
-
-
-    # NEW STUFF TODO: v0.4.1
-    split = args.eval_split
-    # split = "eval_in_distribution"
-    # load config
-    # config = generic.load_config()
-
-    with open('base_config.yaml') as reader:
-        config = yaml.safe_load(reader)
-    env_type = config['env']['type'] # 'AlfredTWEnv' or 'AlfredThorEnv' or 'AlfredHybrid'
-
-    # setup environment
-    # that's how it was done previously
-    # env = getattr(environment, env_type)(config, train_eval=split)
-    env = get_environment(env_type)(config, train_eval=split)
-    env = env.init_env(batch_size=1)
-
-
-
-    # Skipping Envs
-    for i in range(start_env_idx):
-        observation, info = env.reset()
-        # name = '/'.join(info['extra.gamefile'][0].split('/')[-3:-1])
-        # env_type = get_env_type(name)
-        # print(name)
-        # print(f"Idx: {i} Env:{env_type}")
-
-    # input(">")
+    env = AlfworldEnv("base_config.yaml", split=args.eval_split, batch_size=1)
+    env.skip(start_env_idx)
 
 
 
@@ -593,15 +555,7 @@ if __name__=="__main__":
         #######################################################
         # ENV Init
         #######################################################
-        # Get new environment
-        observation, info = env.reset()
-
-        observation = '\n'.join(observation[0].split('\n\n')[1:])
-        name = '/'.join(info['extra.gamefile'][0].split('/')[-3:-1])
-
-        env_type = get_env_type(name)
-        # if not env_type=="clean":
-        #     continue
+        observation, env_type = env.reset()
         print(f"Starting Env with Index: {env_idx+start_env_idx} of type: {env_type}")
 
         if not SILENT_MODE:
@@ -872,11 +826,12 @@ if __name__=="__main__":
                 # ###################################
                 # Observation Related.
                 # ###################################
-                observation, reward, done, info = env.step([actual_action])
-                total_reward += reward[0]
+                observation, reward, done, info = env.step(actual_action)
+                total_reward += reward
 
-
-                observation, is_nothing_happens = process_ob(observation[0], track_nothing_happens=True)
+                observation, is_nothing_happens = process_ob(
+                    observation, track_nothing_happens=True
+                )
                 if is_nothing_happens:
                     num_nothing_happens += 1
                     CURRENT_NOTHING_HAPPENS = True
@@ -884,23 +839,16 @@ if __name__=="__main__":
                     CURRENT_NOTHING_HAPPENS = False
 
 
+                won = bool(info["won"][0])
                 if not SILENT_MODE:
                     print("<> OBSERVATION <>:"+observation)
-                    print(info["won"][0])
-                    print(done[0])
-                    print(reward[0])
+                    print(won)
+                    print(done)
+                    print(reward)
 
-                if done[0] or info["won"][0]:
-                    if info["won"][0]:
-                        success=True
-                    else:
-                        success=False
-
-                    if done[0]:
-                        logging_done=True
-                    else:
-                        logging_done=False
-
+                if done or won:
+                    success = won
+                    logging_done = bool(done)
                     break
 
         except Exception as e:

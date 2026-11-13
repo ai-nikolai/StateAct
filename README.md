@@ -34,6 +34,7 @@ stateact/
   prompts.py      # few-shot prompt assembly and --agent dispatch
   agents.py       # local vLLM + one requests-based URL backend + manual
   llm.py          # --llm_type registry (legacy names kept as aliases)
+  envs/           # optional benchmark adapters (ALFWorld reset/step/skip)
   scoring.py      # aggregate *_results.csv logs
   analysis/       # notebook-compatible ALFWorld/WebShop/TextCraft helpers
   run_config.py   # runs named experiments from experiments/*.yaml
