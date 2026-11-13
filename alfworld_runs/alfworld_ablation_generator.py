@@ -1,45 +1,31 @@
 import os
+import sys
 import json
 import re
 import random
 
+# Make the repository root importable: this module is imported by scripts that
+# are executed as plain files from inside alfworld_runs/.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
-from prompts.alfworld_prompts_utils_v4_clean_base import clean_v4_base_0, clean_v4_base_1, clean_v4_base_2
-from prompts.alfworld_prompts_utils_v4_cool_base import cool_v4_base_0, cool_v4_base_1, cool_v4_base_2
-from prompts.alfworld_prompts_utils_v4_examine_base import examine_v4_base_0, examine_v4_base_1, examine_v4_base_2
-from prompts.alfworld_prompts_utils_v4_heat_base import heat_v4_base_0, heat_v4_base_1, heat_v4_base_2
-from prompts.alfworld_prompts_utils_v4_put_base import put_v4_base_0, put_v4_base_1, put_v4_base_2
-from prompts.alfworld_prompts_utils_v4_puttwo_base import puttwo_v4_base_0, puttwo_v4_base_1, puttwo_v4_base_2
+# The six per-task base-example modules are described by a single registry in
+# stateact.prompts, replacing the six explicit imports and the three
+# hand-written ENV_TO_EXAMPLE_MAPPING_* tables that used to be here. The
+# prompt *content* is untouched - only the wiring is generated.
+from stateact.prompts import BASE_EXAMPLE_MODULES, load_base_example_variants
 
 from alfworld_react_prompt_utils import return_react_examples, return_agentbench_prompts, return_json_react_examples
 
 
-ENV_TO_EXAMPLE_MAPPING_0 = {
-    "clean" : clean_v4_base_0,
-    "cool"  : cool_v4_base_0,
-    "examine"   : examine_v4_base_0,
-    "heat"  : heat_v4_base_0,
-    "put"   : put_v4_base_0,
-    "puttwo"    : puttwo_v4_base_0
+_BASE_EXAMPLE_VARIANTS = {
+    env_type: load_base_example_variants(env_type) for env_type in BASE_EXAMPLE_MODULES
 }
 
-ENV_TO_EXAMPLE_MAPPING_1 = {
-    "clean" : clean_v4_base_1,
-    "cool"  : cool_v4_base_1,
-    "examine"   : examine_v4_base_1,
-    "heat"  : heat_v4_base_1,
-    "put"   : put_v4_base_1,
-    "puttwo"    : puttwo_v4_base_1
-}
-
-ENV_TO_EXAMPLE_MAPPING_2 = {
-    "clean" : clean_v4_base_2,
-    "cool"  : cool_v4_base_2,
-    "examine"   : examine_v4_base_2,
-    "heat"  : heat_v4_base_2,
-    "put"   : put_v4_base_2,
-    "puttwo"    : puttwo_v4_base_2
-}
+ENV_TO_EXAMPLE_MAPPING_0 = {k: v[0] for k, v in _BASE_EXAMPLE_VARIANTS.items()}
+ENV_TO_EXAMPLE_MAPPING_1 = {k: v[1] for k, v in _BASE_EXAMPLE_VARIANTS.items()}
+ENV_TO_EXAMPLE_MAPPING_2 = {k: v[2] for k, v in _BASE_EXAMPLE_VARIANTS.items()}
 
 def transform_baseprompt_into_jsonstate_string(base_prompt, system_prefix="", agent_prefix=">"):
     """ Generate simple prompt based on the base."""
@@ -274,9 +260,9 @@ def extract_react_command_and_arguments(action_string):
     Regex Builder: https://regex101.com/r/BK3La8/1
     """
     # State changing regex expressions.
-    put_regex = """put\s(\w+(?:\s\w+)?\s\d+)\sin\/on\s(\w+(?:\s\w+)?\s\d+)"""
-    goto_regex = """go\sto\s(\w+(?:\s\w+)?\s\d+)"""
-    take_regex = """take\s(\w+(?:\s\w+)?\s\d+)\sfrom\s(\w+(?:\s\w+)?\s\d+)"""
+    put_regex = r"""put\s(\w+(?:\s\w+)?\s\d+)\sin\/on\s(\w+(?:\s\w+)?\s\d+)"""
+    goto_regex = r"""go\sto\s(\w+(?:\s\w+)?\s\d+)"""
+    take_regex = r"""take\s(\w+(?:\s\w+)?\s\d+)\sfrom\s(\w+(?:\s\w+)?\s\d+)"""
     
     # #Commands that do not change the state
     # TODO they need to be update to extract arguments correctly.

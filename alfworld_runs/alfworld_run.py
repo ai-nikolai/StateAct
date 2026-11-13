@@ -55,6 +55,22 @@ from stateact.llm import (  # noqa: E402
     get_agent_and_model,
 )
 
+# Prompt format constants, few-shot assembly and the --agent dispatch
+# (generate_prompt_from_example / save_prompt_file / get_prompt_example ...
+# moved out of this file in the v2 refactor).
+from stateact.prompts import (  # noqa: E402
+    BASE_PROMPT1,
+    BASE_PROMPT2,
+    CLOSING_MARK,
+    HINTS,
+    INSTRUCTIONS,
+    OPENING_MARK,
+    TASK_MESSAGE,
+    generate_prompt_from_example,
+    get_prompt_example,
+    save_prompt_file,
+)
+
 available_providers()
 
 
@@ -65,121 +81,11 @@ available_providers()
 #################################################################
 #PROMPT RELATED
 #################################################################
-
-# OPENING_MARK="<<<"
-OPENING_MARK=""
-# CLOSING_MARK=">>>"
-CLOSING_MARK=""
-
-# HINTS=f"""
-# A few hints:
-# {OPENING_MARK}
-# 1. When "Nothing happens." this means your action was not successful or not valid. If this happen, then try a valid action that you have not tried before.
-
-# 2. If you repeat yourself, try a different valid action.
-
-# 3. Visit new places to find an object.
-
-# 4. Some actions can be only executed in specific places, such as cleaning, heating, cooling...
-
-# 5. Be literatal.
-
-# 6. Initially you have not visited any places and you are starting at the 'starting_location'.
-
-# 7. Generate one JSON output only.
-# {CLOSING_MARK}
-# """
-
-HINTS=""
-
-# INSTRUCTIONS=f"""
-# This is the list of all valid actions that you can use:
-# {OPENING_MARK}
-# - go to <dir> [example: go to table 1]
-# - open <obj> [example: open door 1]
-# - close <obj> [example: close door 1]
-# - put <obj> in/on <obj> [example: put apple 1 in/on table 1]
-# - take <obj> from <obj> [example: take apple 1 from table 1]
-# - cool <obj> with <obj> [example: cool apple 1 with fridge 1]
-# - heat <obj> with <obj> [example: heat apple 1 with fire 1]
-# - use <obj> [example: use desklamp 1]
-# {CLOSING_MARK}
-# """
-
-INSTRUCTIONS=""
-
-
-BASE_PROMPT1 = "Interact with a household to solve a task."
-BASE_PROMPT2 = "You will interact with the environment to solve the given task."
-
-TASK_MESSAGE = "Here is the task."
-
-def generate_prompt_from_example(examples, return_raw_prompt = False, number_of_examples=1, base_prompt = "", instructions = "", hints = ""):
-    """ Generates prompt """
-    if number_of_examples >1:
-        s_string="s"
-        is_are = "are"
-    else:
-        s_string=""
-        is_are = "is"
-    number_of_examples_string = str(number_of_examples)
-
-    #in case no alternative base_prompt is provided.
-    if not base_prompt:
-        base_prompt = BASE_PROMPT1
-
-    #in case no alternative instructions is provided.
-    if not instructions:
-        instructions = INSTRUCTIONS
-
-    #in case no alternative hints is provided.
-    if not hints:
-        hints = HINTS
-
-    task_message = TASK_MESSAGE
-
-    #########################################
-    #
-    #This is the part for the raw prompt.
-    #
-    #########################################
-    raw_prompt = f"""{base_prompt}
-{instructions}
-
-Here {is_are} {number_of_examples_string} example{s_string}:
-{OPENING_MARK}
-{examples}
-{CLOSING_MARK}
-{hints}
-{task_message}
-
-"""
-    prompt = [{
-                "role" : "system",
-                "content" : raw_prompt
-            }]
-
-    if return_raw_prompt:
-        return raw_prompt
-    else:
-        return prompt
-
-# HINT1="""1. When "Nothing happens." this means your action was not successful or not valid. This can have a variety of reasons, such as not wrong format of the output, or doing something in the wrong location, or using objects that are not available.
-# If this happen, then try a valid action that you have not tried before.
-
-# 2. If you repeat yourself, try a different valid action. Re-evaluate your assumptions.
-
-# 3. Visit new places to find an object.
-
-# 4. Some actions can be only executed in specific places, such as cleaning, heating, cooling...
-
-# 5. Generate just one JSON output.
-# """
-
-
-
-
-
+# NOTE (v2 refactor): the prompt format strings (BASE_PROMPT1, TASK_MESSAGE,
+# OPENING_MARK/CLOSING_MARK, HINTS, INSTRUCTIONS), generate_prompt_from_example,
+# save_prompt_file and the prompt-name/example dispatch now live in
+# `stateact.prompts` (imported at the top of this file). The few-shot example
+# content itself is unchanged and still lives in prompts/.
 
 #################################################################
 #Logging Related
@@ -193,12 +99,6 @@ def write_line_to_main_log_csv(name, data):
         elif type(data) == dict:
             data_list = [x for _,x in data.items()]
             wr.writerow(data_list)
-
-def save_prompt_file(file_path, raw_prompt):
-    """ Saves a prompt file """
-    with open(file_path, "w") as file:
-        file.write(raw_prompt)
-
 
 def get_empty_dict_from_csv_header(header):
     """Generate empty dict from csv header"""
@@ -269,86 +169,9 @@ def get_settings_string(react_prompt, agentbench_prompt, json_react_prompt, agen
 #################################################################
 #Env Prompt Logic
 #################################################################
-# TODO:
-# Change to Agent-type from individual prompt_flags.
-def get_prompt_example(agent_type, env_type, prompt_ids, version, generate_prompt=True, keys_to_use=[], key_renaming={}):
-    """ Get name of prompt and example prompts"""
-    # Generate correct prompt for this environment (basically pick the right example).
-    new_base_prompt = ""
-
-    # num_examples needed for prompt_ids
-    num_examples = len(prompt_ids)
-
-    #REACT PROMPT or OUR PROMPT
-    if agent_type=="react":
-        if generate_prompt:
-            prompt_example = return_react_examples(env_type, prompt_ids=prompt_ids)
-
-        prompt_id_string = '_'.join([str(y) for y in prompt_ids])
-        prompt_name = f"react-{prompt_id_string}"
-
-
-    elif agent_type=="agentbench":
-        num_examples=1
-        if generate_prompt:
-            prompt_example, new_base_prompt = return_agentbench_prompts(env_type, return_base=True, version=version)
-        prompt_name = f"agentbench-v{version}"
-
-    elif agent_type=="jsonreact":
-        if generate_prompt:
-            prompt_example = return_json_react_examples(env_type, prompt_ids=prompt_ids, version=version)
-        prompt_id_string = '_'.join([str(y) for y in prompt_ids])
-        prompt_name = f"jsonreact-{prompt_id_string}-v{version}"
-
-    elif agent_type=="ours":
-        if generate_prompt:
-            prompt_example = return_jsonstate_prompt(env_type, prompt_ids=prompt_ids, keys_to_use=keys_to_use, key_renaming=key_renaming)
-        prompt_id_string = '_'.join([str(y) for y in prompt_ids])
-        # TODO: properly test key_renaming.
-        keys_string = '+'.join([str(y) for y in keys_to_use])
-
-        prompt_name = f"jsonstate-{prompt_id_string}-k-{keys_string}"
-
-    elif agent_type=="ours-text" or agent_type=="stateact":
-        if generate_prompt:
-            prompt_example = return_stringstate_prompt(env_type, prompt_ids=prompt_ids, keys_to_use=keys_to_use, key_renaming=key_renaming)
-        prompt_id_string = '_'.join([str(y) for y in prompt_ids])
-        # TODO: properly test key_renaming.
-        keys_string = '+'.join([str(y) for y in keys_to_use])
-
-        prompt_name = f"stringstate-{prompt_id_string}-k-{keys_string}"
-
-    elif agent_type=="act":
-        keys_to_use = ["action"]
-        if generate_prompt:
-            prompt_example = return_stringstate_prompt(env_type, prompt_ids=prompt_ids, keys_to_use=keys_to_use, key_renaming=key_renaming)
-        prompt_id_string = '_'.join([str(y) for y in prompt_ids])
-        # TODO: properly test key_renaming.
-        keys_string = '+'.join([str(y) for y in keys_to_use])
-        prompt_name = f"act-{prompt_id_string}"
-
-    else:
-        raise NotImplementedError(f"Trying to call agent_type: {agent_type}, but it doesn't exist.")
-
-    if generate_prompt:
-        return prompt_name, prompt_example, new_base_prompt, num_examples
-    else:
-        return prompt_name
-
-
-
-# AGENT_MODEL_MAPPING = [
-#     "AnthropicChat",
-#     "CohereChat" ,
-#     "OpenAIChat" ,
-#     "AnthropicText" ,
-#     "CohereText" ,
-#     "OpenAIText" ,
-#     "CohereChatText",
-#     "OpenAIChatText" ,
-#     "OpenAIChatTextSampling"
-# ]
-
+# NOTE (v2 refactor): get_prompt_example now lives in `stateact.prompts`,
+# together with the naming logic and the base-example registry that replaced
+# the three near-identical ENV_TO_EXAMPLE_MAPPING_* tables.
 
 #################################################################
 #Arg parse
