@@ -19,12 +19,16 @@ authors = [{ name = "Nikolai Rozanov" }, { name = "Marek Rei" }]
 dependencies = []
 
 [project.optional-dependencies]
+# The core package has no runtime dependencies.
+url = ["requests>=2.32.3"]
+local = ["vllm>=0.6.6", "transformers>=4.48.2"]
 score = ["pandas>=2.2.3"]
 yaml = ["pyyaml>=6.0.2"]
 dev = [
     "pytest>=8.0",
     "pandas>=2.2.3",
     "pyyaml>=6.0.2",
+    "requests>=2.32.3",
     "ruff>=0.6",
 ]
 
@@ -32,8 +36,8 @@ dev = [
 Paper = "https://arxiv.org/abs/2410.02810"
 Source = "https://github.com/ai-nikolai/StateAct"
 
-[tool.setuptools]
-packages = ["stateact"]
+[tool.setuptools.packages.find]
+include = ["stateact*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

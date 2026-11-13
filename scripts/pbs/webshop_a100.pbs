@@ -1,0 +1,99 @@
+#!/bin/bash
+#PBS -N stateact_webshop_a100
+#PBS -l select=1:ncpus=4:mem=64gb:ngpus=1:gpu_type=A100
+#PBS -l walltime=10:00:00
+#PBS -q hx
+#PBS -j oe
+
+# WebShop with a local model on one A100.
+#
+# The WebShop server runs inside the existing singularity image
+# (webshop_runs/webshop.simg).  It is started on a unix socket, then the
+# experiment connects to it.  Nothing is downloaded here.
+#
+# Submit from the repository root:
+#     bash scripts/submit_pbs.sh webshop
+#
+# Common overrides:
+#     bash scripts/submit_pbs.sh webshop -v "MODEL=Qwen/Qwen2.5-7B-Instruct"
+#     bash scripts/submit_pbs.sh webshop -v "AGENT=react,NUM_ENVS=30"
+
+set -u
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="${REPO_ROOT:-${PBS_O_WORKDIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}}"
+MODEL="${MODEL:-Qwen/Qwen2.5-3B-Instruct}"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-6400}"
+NUM_ENVS="${NUM_ENVS:-100}"
+SEED="${SEED:-42}"
+AGENT="${AGENT:-stateact}"
+RESULTS_FOLDER="${RESULTS_FOLDER:-results/stateact_local}"
+SOCKET_NAME="webshop_${PBS_JOBID:-$$}.sock"
+SOCKET_PATH="${REPO_ROOT}/webshop_runs/tmp/${SOCKET_NAME}"
+SIMG="${WEBSHOP_SIMG:-${REPO_ROOT}/webshop_runs/webshop.simg}"
+
+echo "Job:        ${PBS_JOBID:-local}"
+echo "Repo:       ${REPO_ROOT}"
+echo "Model:      ${MODEL}"
+echo "Agent:      ${AGENT}"
+echo "Socket:     ${SOCKET_PATH}"
+echo "Started:    $(date)"
+nvidia-smi || true
+
+source "${HOME}/miniconda3/etc/profile.d/conda.sh"
+conda activate "${CONDA_ENV:-env_webshop}"
+
+mkdir -p "${REPO_ROOT}/webshop_runs/tmp"
+rm -f "${SOCKET_PATH}"
+
+echo "Starting WebShop server from ${SIMG}"
+cd "${HOME}/z_scripts"
+singularity exec --userns --writable-tmpfs \
+    -B "${REPO_ROOT}/webshop_runs/tmp:/tmp" \
+    "${SIMG}" ./example_run_webshop.sh "unix:///tmp/${SOCKET_NAME}" &
+SERVER_PID=$!
+
+cleanup() {
+    echo "Stopping WebShop server (pid ${SERVER_PID})"
+    kill "${SERVER_PID}" 2>/dev/null || true
+    wait "${SERVER_PID}" 2>/dev/null || true
+    rm -f "${SOCKET_PATH}"
+}
+trap cleanup EXIT
+
+echo "Waiting for ${SOCKET_PATH}"
+for _ in $(seq 1 60); do
+    if [ -S "${SOCKET_PATH}" ]; then
+        echo "Socket is ready"
+        break
+    fi
+    if ! kill -0 "${SERVER_PID}" 2>/dev/null; then
+        echo "WebShop server exited early" >&2
+        exit 1
+    fi
+    sleep 5
+done
+
+if [ ! -S "${SOCKET_PATH}" ]; then
+    echo "Timed out waiting for the WebShop socket" >&2
+    exit 1
+fi
+
+cd "${REPO_ROOT}/webshop_runs"
+
+python3 run_webshop_adapted.py \
+    --llm_type LOCAL \
+    --socket "./tmp/${SOCKET_NAME}" \
+    --model_local "${MODEL}" \
+    --start 0 \
+    --num_envs "${NUM_ENVS}" \
+    --agent "${AGENT}" \
+    --max_model_len "${MAX_MODEL_LEN}" \
+    --quantization 0 \
+    --gpus 1 \
+    --results_folder "${RESULTS_FOLDER}" \
+    --seed "${SEED}"
+
+STATUS=$?
+echo "Finished:   $(date) (exit ${STATUS})"
+exit "${STATUS}"

@@ -1,0 +1,69 @@
+#!/bin/bash
+#PBS -N stateact_alfworld_a100
+#PBS -l select=1:ncpus=4:mem=64gb:ngpus=1:gpu_type=A100
+#PBS -l walltime=08:00:00
+#PBS -q hx
+#PBS -j oe
+
+# ALFWorld with a local model that fits on one A100.
+#
+# Submit from the repository root:
+#     bash scripts/submit_pbs.sh alfworld
+#
+# Override anything through qsub -v, e.g.:
+#     bash scripts/submit_pbs.sh alfworld -v "MODEL=Qwen/Qwen2.5-3B-Instruct,NUM_ENVS=20"
+#
+# The submit helper sets REPO_ROOT and the log path.  When submitting the file
+# directly, export REPO_ROOT or submit from the repository root.
+
+set -u
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="${REPO_ROOT:-${PBS_O_WORKDIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}}"
+MODEL="${MODEL:-Qwen/Qwen2.5-7B-Instruct}"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-16000}"
+NUM_ENVS="${NUM_ENVS:-134}"
+START_INDEX="${START_INDEX:-0}"
+SEED="${SEED:-42}"
+AGENT="${AGENT:-stateact}"
+TRIAL_NAME="${TRIAL_NAME:-stateact_${AGENT}_$(date +%Y%m%d_%H%M%S)}"
+KEYS_TO_USE='["goal","locations_visited","current_location","current_inventory","thought","action"]'
+
+echo "Job:        ${PBS_JOBID:-local}"
+echo "Repo:       ${REPO_ROOT}"
+echo "Model:      ${MODEL}"
+echo "Agent:      ${AGENT}"
+echo "Trial:      ${TRIAL_NAME}"
+echo "Started:    $(date)"
+nvidia-smi || true
+
+source "${HOME}/miniconda3/etc/profile.d/conda.sh"
+conda activate "${CONDA_ENV:-env_alfworld}"
+
+cd "${REPO_ROOT}/alfworld_runs"
+mkdir -p game_logs
+
+python3 alfworld_run.py \
+    --agent "${AGENT}" \
+    --llm_type VLLMChat \
+    --model "${MODEL}" \
+    --trial_name "${TRIAL_NAME}" \
+    --start_index "${START_INDEX}" \
+    --num_envs "${NUM_ENVS}" \
+    --prompt_ids 1 0 \
+    --keys_to_use "${KEYS_TO_USE}" \
+    --apply_correction \
+    --force_run \
+    --force_model \
+    --max_model_len "${MAX_MODEL_LEN}" \
+    --quantization 0 \
+    --seed "${SEED}"
+
+STATUS=$?
+echo "Finished:   $(date) (exit ${STATUS})"
+
+if [ "${STATUS}" -eq 0 ]; then
+    python3 get_score.py --trial_name "${TRIAL_NAME}"
+fi
+
+exit "${STATUS}"
