@@ -37,6 +37,10 @@ echo "Trial:      ${TRIAL_NAME}"
 echo "Started:    $(date)"
 nvidia-smi || true
 
+# vLLM 0.6.x cannot parse the GPU UUIDs that PBS puts in
+# CUDA_VISIBLE_DEVICES; use the first visible device ordinal instead.
+export CUDA_VISIBLE_DEVICES="${CUDA_DEVICE_ORDINAL:-0}"
+
 source "${HOME}/miniconda3/etc/profile.d/conda.sh"
 conda activate "${CONDA_ENV:-env_alfworld}"
 

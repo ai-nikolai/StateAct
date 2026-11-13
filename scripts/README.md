@@ -78,10 +78,13 @@ and submit with `sbatch`. The body of the jobs is scheduler-independent.
 
 ## Notes
 
-- WebShop needs the container image at `webshop_runs/webshop.simg` and the
-  launcher at `~/z_scripts/example_run_webshop.sh`. The job starts the server
-  with `--writable-tmpfs`, waits for the unix socket, runs the experiment, and
+- WebShop needs the container image at `webshop_runs/webshop.simg` (or pass
+  `-v WEBSHOP_SIMG=/path/to/webshop.simg`) and the launcher at
+  `~/z_scripts/example_run_webshop.sh`. The job starts the server with
+  `--writable-tmpfs`, waits for the unix socket, runs the experiment, and
   cleans both up on exit.
+- Both jobs force `CUDA_VISIBLE_DEVICES` to a numeric ordinal because vLLM
+  0.6.x cannot parse the GPU UUIDs that PBS exports.
 - ALFWorld needs the ALFWorld data (`alfworld-download`) and
   `alfworld_runs/base_config.yaml`; both are already assumed by the existing
   README.
