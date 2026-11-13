@@ -32,8 +32,10 @@ points and keep working unchanged.
 stateact/
   parsing.py      # action extraction + observation normalisation (stdlib only)
   prompts.py      # few-shot prompt assembly and --agent dispatch
-  llm.py          # provider registry + llamp agent construction
+  agents.py       # local vLLM + one requests-based URL backend + manual
+  llm.py          # --llm_type registry (legacy names kept as aliases)
   scoring.py      # aggregate *_results.csv logs
+  analysis/       # notebook-compatible ALFWorld/WebShop/TextCraft helpers
   run_config.py   # runs named experiments from experiments/*.yaml
 experiments/
   alfworld.yaml   # replaces the ~1000-line if/elif shell registry
@@ -41,7 +43,21 @@ experiments/
 alfworld_runs/    # ALFWorld entry point + paper prompt artefacts
 webshop_runs/     # WebShop entry point + vendored environment client
 textcraft_runs/   # TextCraft entry points
+scripts/          # PBS jobs for A100 (ALFWorld + WebShop)
 tests/            # unit tests for stateact (no benchmark install needed)
+```
+
+There are no provider SDKs in the core: models are either **local** (vLLM) or
+**URL-based** (any OpenAI-compatible endpoint through `requests`). The old
+`--llm_type` names (`OpenAIChatText`, `NvidiaChatText`, ...) are kept as
+aliases for the same URL backend, so existing commands keep working.
+
+For analysis:
+
+```bash
+python -m stateact.analysis alfworld --trial-name baseline_14B --base-folder alfworld_runs/game_logs
+python -m stateact.analysis webshop  webshop_runs/results/v6_api_paper/scores.csv --best
+python -m stateact.analysis textcraft textcraft_runs/results/results.csv
 ```
 
 Named experiments can be listed or dry-run without installing ALFWorld,
@@ -55,8 +71,20 @@ bash alfworld_runs/run_alfworld_eval.sh eval_mix   # old interface, still works
 
 CI (`.github/workflows/ci.yml`) runs the test suite on Python 3.9-3.12,
 lints the shared package, byte-compiles the benchmark entry points, and builds
-the wheel. See [`docs/v2-review.md`](docs/v2-review.md) for the v2 review,
-the dependency audit and the proposed `llamp` replacement.
+the wheel. See [`docs/v2-review.md`](docs/v2-review.md) for the v2 review and
+dependency decisions.
+
+## Running on the cluster (PBS)
+
+A100 jobs for a small local model are in `scripts/pbs/`:
+
+```bash
+bash scripts/submit_pbs.sh alfworld   # Qwen2.5-7B-Instruct, 134 envs
+bash scripts/submit_pbs.sh webshop    # Qwen2.5-3B-Instruct, 100 envs
+```
+
+See [`scripts/README.md`](scripts/README.md) for overrides (`MODEL`,
+`NUM_ENVS`, `AGENT`, ...) and the SLURM equivalent.
 
 
 
