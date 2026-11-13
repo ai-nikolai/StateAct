@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stateact"
+version = "2.0.0"
+description = "State tracking and reasoning for acting and planning with large language models"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Proprietary" }
+authors = [{ name = "Nikolai Rozanov" }, { name = "Marek Rei" }]
+
+# The core package (parsing, scoring) only needs the standard library.
+# The environment-specific dependencies are per-benchmark and stay in the
+# requirements.txt files under each *_runs/ directory, because they are
+# mutually incompatible (two different vLLM pins, alfworld vs webshop vs
+# textcraft).
+dependencies = []
+
+[project.optional-dependencies]
+score = ["pandas>=2.2.3"]
+yaml = ["pyyaml>=6.0.2"]
+
+[project.urls]
+Paper = "https://arxiv.org/abs/2410.02810"
+Source = "https://github.com/ai-nikolai/StateAct"
+
+[tool.setuptools]
+packages = ["stateact"]
