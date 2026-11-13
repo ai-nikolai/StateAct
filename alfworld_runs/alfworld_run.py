@@ -3,8 +3,39 @@ import csv
 import os
 import json
 import re
+import sys
 import argparse
 from datetime import datetime
+
+# Make the repository root importable: this script is executed as a plain file
+# (python3 alfworld_runs/alfworld_run.py), so sys.path[0] is alfworld_runs/ and
+# the shared `stateact` package would otherwise not be found.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+# Shared parsing helpers (extracted verbatim from this file in the v2 refactor).
+from stateact.parsing import (  # noqa: E402
+    ENV_TYPES,
+    get_env_type,
+    transform_put_action,
+    get_observation_agentbench_thought,
+    get_observation_react_thought,
+    get_observation_jsonreact_thought,
+    general_action_cleaning,
+    json_action_cleaning,
+    our_text_action_cleaning,
+    nojson_action_cleaning,
+    is_react_thought,
+    is_jsonreact_thought,
+    is_agentbench_thought,
+    get_action_jsonreact,
+    get_action_jsonstate,
+    get_action_stringstate,
+    get_action_agentbench,
+    process_action,
+    process_ob,
+)
 
 
 # import alfworld
@@ -14,473 +45,47 @@ import alfworld.agents.environment as environment
 from alfworld.agents.environment import get_environment
 # import alfworld.agents.modules.generic as generic
 
-from llamp.llms import Manual
-try:
-    from llamp.llms.api import AnthropicChat, AnthropicText
-    anthropic_avail=True
-except Exception as e:
-    print(e)
-    print("Did not import Anthropic")
-    anthropic_avail=False
-
-try:
-    from llamp.llms.api import CohereChat, CohereChatText, CohereText
-    cohere_avail=True
-except Exception as e:
-    print(e)
-    print("Did not import Cohere")
-    cohere_avail=False
-
-try:
-    from llamp.llms.api import OpenAIChat, OpenAIChatText, OpenAIText, OpenAIChatTextSampling
-    openai_avail=True
-except Exception as e:
-    print(e)
-    print("Did not import OpenAI")
-    openai_avail=False
-
-try:
-    from llamp.llms.api import NvidiaChatText
-    nvidia_avail=True
-except Exception as e:
-    print(e)
-    print("Did not import NvidaCloud")
-    nvidia_avail=False
-
-try:
-    from llamp.llms.api import CerebrasChatText
-    cerebras_avail=True
-except Exception as e:
-    print(e)
-    print("Did not import Cerebras")  
-    cerebras_avail=False
-
-
-try:
-    from llamp.llms.local import (
-        VLLMChat
-    )
-    vllm_avail=True
-except Exception as e:
-    print(e)
-    print("Did not import local model")
-    vllm_avail=False
-
-from alfworld_ablation_generator import return_jsonstate_prompt, return_stringstate_prompt
-from alfworld_react_prompt_utils import return_react_examples, return_agentbench_prompts, return_json_react_examples
-
-
-print("End of imports. Imported:")
-print(f"OpenAI: {openai_avail}")
-print(f"Anthropic: {anthropic_avail}")
-print(f"Cohere: {cohere_avail}")
-print(f"Nvidia: {nvidia_avail}")
-print(f"Cerebras: {cerebras_avail}")
-print(f"VLLM: {vllm_avail}")
-
-
-# Git patch commit: https://stackoverflow.com/questions/1085162/commit-only-part-of-a-files-changes-in-git
-#################################################################
-#GAME LOOP & ENV Related
-#################################################################
-
-ENV_TYPES = {
-    'pick_and_place': 'put',
-    'pick_clean_then_place': 'clean',
-    'pick_heat_then_place': 'heat',
-    'pick_cool_then_place': 'cool',
-    'look_at_obj': 'examine',
-    'pick_two_obj': 'puttwo'
-}
-
-def get_env_type(env_name):
-    """ Extracts which type of env it is"""
-    env_type = ""
-    for key, value in ENV_TYPES.items():
-        if env_name.startswith(key):
-            env_type = value
-    return env_type
-
-
-def transform_put_action(action, transform_to_move_syntax=True):
-    """ Put action grammar correction. """
-    put_regex_1 = """put(?:\s\w+)(?:\s\w+)?(?:\s\d+)\son(?:\s\w+)(?:\s\w+)?(?:\s\d+)"""
-    put_regex_2 = """put(?:\s\w+)(?:\s\w+)?(?:\s\d+)\sin(?:\s\w+)(?:\s\w+)?(?:\s\d+)"""
-    correction_happened = False
-
-    if action.startswith("put"):
-        answer = re.match(put_regex_1,action)
-        if answer:
-            action = action.replace(" on "," in/on ")
-            correction_happened = True
-        else:
-            answer = re.match(put_regex_2,action)
-            if answer:
-                action = action.replace(" in "," in/on ")
-                correction_happened = True
-    
-    if transform_to_move_syntax:
-        action = action.replace("put","move")
-        action = action.replace("in/on", "to")
-        
-    return action, correction_happened
-
-
-
-#################################################################
-#PROCESSING ACTIONS & OBSERVATIONS BASED on AGENTS
-#################################################################
-def get_observation_agentbench_thought():
-    observation = "\n"
-    return observation
-
-def get_observation_react_thought():
-    observation = "OK.\n"
-    return observation
-
-def get_observation_jsonreact_thought():
-    observation = "OK.\n"
-    return observation
-
-
-
-def general_action_cleaning(action):
-    """ General action cleaning. """
-    if action.startswith("> "):
-        action = action.replace("> ","")
-
-    if action.startswith(">"):
-        action = action.replace(">","")
-
-    return action
-
-def json_action_cleaning(action):
-    """Action Cleaning for json."""
-    action = action.strip()
-    if action.startswith("```json"):
-        action = action.replace("```json","")
-
-    if action.startswith("```"):
-        action = action.replace("```","")
-
-    if action.endswith("```"):
-        action = action.replace("```","")
-
-    if not action.endswith("}"):
-        action+="\n}\n"
-
-    return action
-
-
-def our_text_action_cleaning(action):
-    """Action cleaning for our text"""
-    action = action.strip()
-    action+="\n\n"
-    return action
-
-
-def nojson_action_cleaning(action):
-    """Action cleaning for no json."""
-    action = action.strip()
-    action+="\n"
-    return action
-
-
-def is_react_thought(action):
-    return action.startswith("think:")
-
-def is_jsonreact_thought(action, version=1):
-    """ Todo: version number. """
-    return '"think": "' in action
-
-def is_agentbench_thought(action):
-    return "THOUGHT:" in action
-
-
-
-def get_action_jsonreact(action, version=1, key="action"):
-    """
-    Extracts 'actual_action' from action.
-
-    'key' is not used at the moment.
-    """
-    if version==1:
-        key = "action"
-
-    actual_action = action
-    was_command = False
-    valid_json = False
-    try:
-        data = json.loads(action.strip())
-        valid_json = True
-        potential_action = data.get(key)
-        if potential_action:
-            actual_action = potential_action
-            was_command = True
-    except Exception as e:
-        if (f'"{key}" : "' in action):
-            was_command = True
-            actions = action.split(f'"{key}" : "')
-            actual_action = actions[1].split('"')[0]
-            print(f"Extracted Action:{actual_action}")
-
-        elif (f'"{key}": "' in action):
-            was_command = True
-            actions = action.split(f'"{key}": "')
-            actual_action = actions[1].split('"')[0]
-            print(f"Extracted Action:{actual_action}")
-
-        elif (f'"{key}":"' in action):
-            was_command = True
-            actions = action.split(f'"{key}":"')
-            actual_action = actions[1].split('"')[0]
-            print(f"Extracted Action:{actual_action}")
-
-    return actual_action, was_command, valid_json
-
-
-
-def get_action_jsonstate(action, key="action"):
-    """Extracts 'actual_action' from action. """
-    actual_action = action
-    was_command = False
-    valid_json = False
-    try:
-        data = json.loads(action.strip())
-        valid_json = True
-        potential_action = data.get(key)
-        if potential_action:
-            actual_action = potential_action
-            was_command = True
-    except Exception as e:
-        if (f'"{key}" : "' in action):
-            was_command = True
-            actions = action.split(f'"{key}" : "')
-            actual_action = actions[1].split('"')[0]
-            print(f"Extracted Action:{actual_action}")
-
-        elif (f'"{key}": "' in action):
-            was_command = True
-            actions = action.split(f'"{key}": "')
-            actual_action = actions[1].split('"')[0]
-            print(f"Extracted Action:{actual_action}")
-
-        elif (f'"{key}":"' in action):
-            was_command = True
-            actions = action.split(f'"{key}":"')
-            actual_action = actions[1].split('"')[0]
-            print(f"Extracted Action:{actual_action}")
-
-    return actual_action, was_command, valid_json
-
-
-def get_action_stringstate(action, key="action"):
-    """Extracts 'actual_action' from action. """
-    actual_action = action
-    was_command = False
-
-    SEP = f"{key}: "
-    if SEP in action:
-        split_sys_response = action.split(SEP)
-        actual_action = split_sys_response[-1]
-        was_command = True
-
-    return actual_action, was_command
-
-
-def get_action_agentbench(action):
-    """Extracts 'actual_action' from action. """
-    actual_action = action
-    was_command = False
-
-    if "ACTION:" in action:
-        actions = action.split('ACTION:')
-        actual_action = actions[1]
-        was_command = True
-        print(f"Extracted Action:{actual_action}")
-
-    return actual_action, was_command
-
-
-def process_action(action, track_is_illegal=False):
-    """Processes Action of Agent."""
-    illegal_action = False
-
-    if 'action("' in action:
-        actions = action.split('action("')
-        action = actions[1].split('")')[0]
-        print(f"Extracted Action:{action}")
-
-    elif ('"action" : "' in action):
-        actions = action.split('"action" : "')
-        action = actions[1].split('"')[0]
-        print(f"Extracted Action:{action}")
-
-    elif ('"action": "' in action):
-        actions = action.split('"action": "')
-        action = actions[1].split('"')[0]
-        print(f"Extracted Action:{action}")
-
-    elif ('"action":"' in action):
-        actions = action.split('"action":"')
-        action = actions[1].split('"')[0]
-        print(f"Extracted Action:{action}")
-
-    #TODO: this is for AGENTBENCH, need to refactor.
-    elif "ACTION:" in action:
-        actions = action.split('ACTION:')
-        action = actions[1]
-        print(f"Extracted Action:{action}")
-
-    else:
-        illegal_action = True
-
-    if track_is_illegal:
-        return action, illegal_action
-    else:
-        return action
-
-
-
-def process_ob(ob, track_nothing_happens=False):
-    if ob.startswith('You arrive at loc '):
-        ob = ob[ob.find('. ')+2:]
-
-    nothing_happens = False
-
-    if ob == "Nothing happens.":
-        nothing_happens = True
-        # ob = "Invalid or Impossible Action. Try again."
-
-    if not ob.endswith("\n"):
-        ob += "\n"
-
-    if track_nothing_happens:
-        return ob, nothing_happens
-    else:
-        return ob
-
-
-
-
+# Provider imports and agent construction live in the shared `stateact.llm`
+# module (single optional-import helper + a registry, replacing the six
+# repetitive try/except blocks and the ~170 line if/elif chain that used to
+# be here). `available_providers()` prints the same availability summary.
+from stateact.llm import (  # noqa: E402
+    AGENT_MODEL_MAPPING,
+    available_providers,
+    get_agent_and_model,
+)
+
+# Prompt format constants, few-shot assembly and the --agent dispatch
+# (generate_prompt_from_example / save_prompt_file / get_prompt_example ...
+# moved out of this file in the v2 refactor).
+from stateact.prompts import (  # noqa: E402
+    BASE_PROMPT1,
+    BASE_PROMPT2,
+    CLOSING_MARK,
+    HINTS,
+    INSTRUCTIONS,
+    OPENING_MARK,
+    TASK_MESSAGE,
+    generate_prompt_from_example,
+    get_prompt_example,
+    save_prompt_file,
+)
+
+available_providers()
+
+
+# NOTE (v2 refactor): the env-type / action-parsing / observation helpers that used to be
+# defined here now live in the shared `stateact.parsing` module (imported at the top of this
+# file). They were moved verbatim, so behaviour is unchanged; the originals were removed to
+# avoid having two copies drift apart. See stateact/parsing.py.
 #################################################################
 #PROMPT RELATED
 #################################################################
-
-# OPENING_MARK="<<<"
-OPENING_MARK=""
-# CLOSING_MARK=">>>"
-CLOSING_MARK=""
-
-# HINTS=f"""
-# A few hints:
-# {OPENING_MARK}
-# 1. When "Nothing happens." this means your action was not successful or not valid. If this happen, then try a valid action that you have not tried before.
-
-# 2. If you repeat yourself, try a different valid action.
-
-# 3. Visit new places to find an object.
-
-# 4. Some actions can be only executed in specific places, such as cleaning, heating, cooling...
-
-# 5. Be literatal.
-
-# 6. Initially you have not visited any places and you are starting at the 'starting_location'.
-
-# 7. Generate one JSON output only.
-# {CLOSING_MARK}
-# """
-
-HINTS=""
-
-# INSTRUCTIONS=f"""
-# This is the list of all valid actions that you can use:
-# {OPENING_MARK}
-# - go to <dir> [example: go to table 1]
-# - open <obj> [example: open door 1]
-# - close <obj> [example: close door 1]
-# - put <obj> in/on <obj> [example: put apple 1 in/on table 1]
-# - take <obj> from <obj> [example: take apple 1 from table 1]
-# - cool <obj> with <obj> [example: cool apple 1 with fridge 1]
-# - heat <obj> with <obj> [example: heat apple 1 with fire 1]
-# - use <obj> [example: use desklamp 1]
-# {CLOSING_MARK}
-# """
-
-INSTRUCTIONS=""
-
-
-BASE_PROMPT1 = "Interact with a household to solve a task."
-BASE_PROMPT2 = "You will interact with the environment to solve the given task."
-
-TASK_MESSAGE = "Here is the task."
-
-def generate_prompt_from_example(examples, return_raw_prompt = False, number_of_examples=1, base_prompt = "", instructions = "", hints = ""):
-    """ Generates prompt """
-    if number_of_examples >1:
-        s_string="s"
-        is_are = "are"
-    else:
-        s_string=""
-        is_are = "is"
-    number_of_examples_string = str(number_of_examples)
-
-    #in case no alternative base_prompt is provided.
-    if not base_prompt:
-        base_prompt = BASE_PROMPT1
-
-    #in case no alternative instructions is provided.
-    if not instructions:
-        instructions = INSTRUCTIONS
-
-    #in case no alternative hints is provided.
-    if not hints:
-        hints = HINTS
-
-    task_message = TASK_MESSAGE
-
-    #########################################
-    #
-    #This is the part for the raw prompt.
-    #
-    #########################################
-    raw_prompt = f"""{base_prompt}
-{instructions}
-
-Here {is_are} {number_of_examples_string} example{s_string}:
-{OPENING_MARK}
-{examples}
-{CLOSING_MARK}
-{hints}
-{task_message}
-
-"""
-    prompt = [{
-                "role" : "system",
-                "content" : raw_prompt
-            }]
-
-    if return_raw_prompt:
-        return raw_prompt
-    else:
-        return prompt
-
-# HINT1="""1. When "Nothing happens." this means your action was not successful or not valid. This can have a variety of reasons, such as not wrong format of the output, or doing something in the wrong location, or using objects that are not available.
-# If this happen, then try a valid action that you have not tried before.
-
-# 2. If you repeat yourself, try a different valid action. Re-evaluate your assumptions.
-
-# 3. Visit new places to find an object.
-
-# 4. Some actions can be only executed in specific places, such as cleaning, heating, cooling...
-
-# 5. Generate just one JSON output.
-# """
-
-
-
-
-
+# NOTE (v2 refactor): the prompt format strings (BASE_PROMPT1, TASK_MESSAGE,
+# OPENING_MARK/CLOSING_MARK, HINTS, INSTRUCTIONS), generate_prompt_from_example,
+# save_prompt_file and the prompt-name/example dispatch now live in
+# `stateact.prompts` (imported at the top of this file). The few-shot example
+# content itself is unchanged and still lives in prompts/.
 
 #################################################################
 #Logging Related
@@ -494,12 +99,6 @@ def write_line_to_main_log_csv(name, data):
         elif type(data) == dict:
             data_list = [x for _,x in data.items()]
             wr.writerow(data_list)
-
-def save_prompt_file(file_path, raw_prompt):
-    """ Saves a prompt file """
-    with open(file_path, "w") as file:
-        file.write(raw_prompt)
-
 
 def get_empty_dict_from_csv_header(header):
     """Generate empty dict from csv header"""
@@ -518,206 +117,6 @@ def get_empty_dict_from_csv_header(header):
 #AGENT Related
 #################################################################
 # TODO: REFACTOR
-AGENT_MODEL_MAPPING = {
-    "AnthropicChat" : ["claude-2.1", "claude-3-haiku-20240307", "claude-3-sonnet-20240229"],
-    "CohereChat" : ["command","command-nightly", "command-r", "command-r-plus"],
-    "OpenAIChat" : ["gpt-3.5-turbo-0125", "gpt-4-turbo-preview", "gpt-3.5-turbo-0301", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-1106"],
-    "AnthropicText" : ["claude-2.1", "claude-3-haiku-20240307", "claude-3-sonnet-20240229"],
-    "CohereText" : ["command","command-nightly", "command-r", "command-r-plus"],
-    "OpenAIText" : ["davinci-002", "gpt-3.5-turbo-instruct"],
-    "CohereChatText" : ["command","command-nightly", "command-r", "command-r-plus"],
-    "OpenAIChatText" : ["gpt-3.5-turbo-0125", "gpt-4-turbo-preview", "gpt-3.5-turbo-0301", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-1106", "gpt-4o-mini"],
-    "OpenAIChatTextSampling" : ["gpt-3.5-turbo-0125", "gpt-4-turbo-preview","gpt-3.5-turbo-0301", "gpt-3.5-turbo-0613", "gpt-3.5-turbo-1106"],
-    "NvidiaChatText" :["mistralai/mixtral-8x22b-instruct-v0.1","meta/llama-3.1-8b-instruct","meta/llama-3.1-70b-instruct"],
-    "CerebrasChatText" :["llama3.1-8b","llama3.1-70b"],
-    "VLLMChat" : [
-        "Qwen/Qwen2.5-0.5B-Instruct",
-        "Qwen/Qwen2.5-1.5B-Instruct", 
-        "Qwen/Qwen2.5-14B-Instruct",
-    ]
-}
-
-
-def get_agent_and_model(llm_type, temperature=0.0, proposed_model="", force_model=False, **kwargs):
-    """ Returns Agent, Model"""
-    print(llm_type)
-    print(proposed_model)
-    #Standard CHAT Models
-    if llm_type == "AnthropicChat":
-        model = "claude-2.1"
-        if proposed_model:
-            if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
-                model = proposed_model
-            else:
-                print("WARNING: Proposed Model is not in LIST!!!")
-                if force_model:
-                    print("WARNING: Using your model in anycase.")
-                    model = proposed_model
-        agent = AnthropicChat(temperature=temperature, model=model)
-
-    elif llm_type == "CohereChat":
-        # model = "command"
-        # model = "command-nightly"
-        model = "command-r"
-        if proposed_model:
-            if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
-                model = proposed_model
-            else:
-                print("WARNING: Proposed Model is not in LIST!!!")
-                if force_model:
-                    print("WARNING: Using your model in anycase.")
-                    model = proposed_model
-        agent = CohereChat(temperature=temperature, model=model)
-
-    elif llm_type=="OpenAIChat":
-        model = "gpt-3.5-turbo-0125"
-        # model = "gpt-4-turbo-preview"
-        if proposed_model:
-            if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
-                model = proposed_model
-            else:
-                print("WARNING: Proposed Model is not in LIST!!!")
-                if force_model:
-                    print("WARNING: Using your model in anycase.")
-                    model = proposed_model
-        agent = OpenAIChat(temperature=temperature, model=model)
-
-
-
-    #TEXT BASED MODELs
-    elif llm_type =="AnthropicText":
-        if proposed_model:
-            if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
-                model = proposed_model
-            else:
-                print("WARNING: Proposed Model is not in LIST!!!")
-                if force_model:
-                    print("WARNING: Using your model in anycase.")
-                    model = proposed_model
-        # model = "claude-1.2"
-        model = "claude-2.1"
-        agent = AnthropicText(temperature=temperature, model=model)
-
-    elif llm_type=="CohereText":
-        # model = "command"
-        # model = "command-nightly"
-        model = "command-r"
-        if proposed_model:
-            if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
-                model = proposed_model
-            else:
-                print("WARNING: Proposed Model is not in LIST!!!")
-                if force_model:
-                    print("WARNING: Using your model in anycase.")
-                    model = proposed_model
-        agent = CohereText(temperature=temperature, model=model)
-
-    elif llm_type=="OpenAIText":
-        model = "davinci-002"
-        model = "gpt-3.5-turbo-instruct"
-        if proposed_model:
-            if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
-                model = proposed_model
-            else:
-                print("WARNING: Proposed Model is not in LIST!!!")
-                if force_model:
-                    print("WARNING: Using your model in anycase.")
-                    model = proposed_model
-        agent = OpenAIText(temperature=temperature, model=model)
-
-
-
-    #CHAT MODELS used as TEXT MODELs
-    elif llm_type=="CohereChatText":
-        # model = "command"
-        # model = "command-nightly"
-        model = "command-r"
-        if proposed_model:
-            if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
-                model = proposed_model
-            else:
-                print("WARNING: Proposed Model is not in LIST!!!")
-                if force_model:
-                    print("WARNING: Using your model in anycase.")
-                    model = proposed_model
-        agent = CohereChatText(temperature=temperature, model=model)
-
-
-    elif llm_type=="OpenAIChatText":
-        model = "gpt-3.5-turbo-0125"
-        # model = "gpt-4-turbo-preview"
-        if proposed_model:
-            if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
-                model = proposed_model
-            else:
-                print("WARNING: Proposed Model is not in LIST!!!")
-                if force_model:
-                    print("WARNING: Using your model in anycase.")
-                    model = proposed_model
-        agent = OpenAIChatText(temperature=temperature, model=model)
-
-
-    elif llm_type=="OpenAIChatTextSampling":
-        model = "gpt-3.5-turbo-0125"
-        # model = "gpt-4-turbo-preview"
-        if proposed_model:
-            if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
-                model = proposed_model
-            else:
-                print("WARNING: Proposed Model is not in LIST!!!")
-                if force_model:
-                    print("WARNING: Using your model in anycase.")
-                    model = proposed_model
-        agent = OpenAIChatTextSampling(temperature=temperature, model=model)
-
-    elif llm_type=="NvidiaChatText":
-        model = "meta/llama-3.1-8b-instruct"
-        # model = "meta/llama-3.1-70b-instruct"
-        # model = "gpt-4-turbo-preview"
-        if proposed_model:
-            if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
-                model = proposed_model
-            else:
-                print("WARNING: Proposed Model is not in LIST!!!")
-                if force_model:
-                    print("WARNING: Using your model in anycase.")
-                    model = proposed_model
-        agent = NvidiaChatText(temperature=temperature, model=model)
-
-    elif llm_type=="CerebrasChatText":
-        model = "llama3.1-8b"
-        if proposed_model:
-            if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
-                model = proposed_model
-            else:
-                print("WARNING: Proposed Model is not in LIST!!!")
-                if force_model:
-                    print("WARNING: Using your model in anycase.")
-                    model = proposed_model
-        agent = CerebrasChatText(temperature=temperature, model=model)
-
-    elif llm_type=="VLLMChat":
-        model = "Qwen/Qwen2.5-0.5B-Instruct"
-        if proposed_model:
-            if proposed_model in AGENT_MODEL_MAPPING[llm_type]:
-                model = proposed_model
-            else:
-                print("WARNING: Proposed Model is not in LIST!!!")
-                if force_model:
-                    print("WARNING: Using your model in anycase.")
-                    model = proposed_model
-
-        agent = VLLMChat(model=model, **kwargs)
-
-
-    elif llm_type.lower()=="manual":
-        model = "Manual"
-        agent = Manual()
-
-    return agent, model
-
-
-
 #################################################################
 #Display Settings
 #################################################################
@@ -770,86 +169,9 @@ def get_settings_string(react_prompt, agentbench_prompt, json_react_prompt, agen
 #################################################################
 #Env Prompt Logic
 #################################################################
-# TODO:
-# Change to Agent-type from individual prompt_flags.
-def get_prompt_example(agent_type, env_type, prompt_ids, version, generate_prompt=True, keys_to_use=[], key_renaming={}):
-    """ Get name of prompt and example prompts"""
-    # Generate correct prompt for this environment (basically pick the right example).
-    new_base_prompt = ""
-
-    # num_examples needed for prompt_ids
-    num_examples = len(prompt_ids)
-
-    #REACT PROMPT or OUR PROMPT
-    if agent_type=="react":
-        if generate_prompt:
-            prompt_example = return_react_examples(env_type, prompt_ids=prompt_ids)
-
-        prompt_id_string = '_'.join([str(y) for y in prompt_ids])
-        prompt_name = f"react-{prompt_id_string}"
-
-
-    elif agent_type=="agentbench":
-        num_examples=1
-        if generate_prompt:
-            prompt_example, new_base_prompt = return_agentbench_prompts(env_type, return_base=True, version=version)
-        prompt_name = f"agentbench-v{version}"
-
-    elif agent_type=="jsonreact":
-        if generate_prompt:
-            prompt_example = return_json_react_examples(env_type, prompt_ids=prompt_ids, version=version)
-        prompt_id_string = '_'.join([str(y) for y in prompt_ids])
-        prompt_name = f"jsonreact-{prompt_id_string}-v{version}"
-
-    elif agent_type=="ours":
-        if generate_prompt:
-            prompt_example = return_jsonstate_prompt(env_type, prompt_ids=prompt_ids, keys_to_use=keys_to_use, key_renaming=key_renaming)
-        prompt_id_string = '_'.join([str(y) for y in prompt_ids])
-        # TODO: properly test key_renaming.
-        keys_string = '+'.join([str(y) for y in keys_to_use])
-
-        prompt_name = f"jsonstate-{prompt_id_string}-k-{keys_string}"
-
-    elif agent_type=="ours-text" or agent_type=="stateact":
-        if generate_prompt:
-            prompt_example = return_stringstate_prompt(env_type, prompt_ids=prompt_ids, keys_to_use=keys_to_use, key_renaming=key_renaming)
-        prompt_id_string = '_'.join([str(y) for y in prompt_ids])
-        # TODO: properly test key_renaming.
-        keys_string = '+'.join([str(y) for y in keys_to_use])
-
-        prompt_name = f"stringstate-{prompt_id_string}-k-{keys_string}"
-
-    elif agent_type=="act":
-        keys_to_use = ["action"]
-        if generate_prompt:
-            prompt_example = return_stringstate_prompt(env_type, prompt_ids=prompt_ids, keys_to_use=keys_to_use, key_renaming=key_renaming)
-        prompt_id_string = '_'.join([str(y) for y in prompt_ids])
-        # TODO: properly test key_renaming.
-        keys_string = '+'.join([str(y) for y in keys_to_use])
-        prompt_name = f"act-{prompt_id_string}"
-
-    else:
-        raise NotImplementedError(f"Trying to call agent_type: {agent_type}, but it doesn't exist.")
-
-    if generate_prompt:
-        return prompt_name, prompt_example, new_base_prompt, num_examples
-    else:
-        return prompt_name
-
-
-
-# AGENT_MODEL_MAPPING = [
-#     "AnthropicChat",
-#     "CohereChat" ,
-#     "OpenAIChat" ,
-#     "AnthropicText" ,
-#     "CohereText" ,
-#     "OpenAIText" ,
-#     "CohereChatText",
-#     "OpenAIChatText" ,
-#     "OpenAIChatTextSampling"
-# ]
-
+# NOTE (v2 refactor): get_prompt_example now lives in `stateact.prompts`,
+# together with the naming logic and the base-example registry that replaced
+# the three near-identical ENV_TO_EXAMPLE_MAPPING_* tables.
 
 #################################################################
 #Arg parse

@@ -1,0 +1,51 @@
+# Named experiments for the webshop benchmark.
+#
+# This file replaces the repeated `if [ $1 == "name" ]; then python3 <script> ...
+# fi;` blocks that used to live in run_webshop.sh.
+#
+# Every argument list below was generated mechanically from that script: it was
+# re-run with `python3` replaced by a NUL-bounded printf, so bash performed all
+# variable expansion and word splitting exactly as it does for real, and the
+# resulting argv was recorded verbatim. Nothing was retyped by hand.
+#
+# Usage:
+#
+#     bash run_webshop.sh <name>               # wrapper, unchanged interface
+#     bash run_webshop.sh --list               # list the experiments
+#     python3 stateact/run_config.py webshop <name>           # run one
+#     python3 stateact/run_config.py webshop --list           # list them
+#     python3 stateact/run_config.py webshop <name> --dry-run # print, don't run
+#
+# `runner_dir` is the working directory the original script assumed - the
+# benchmark's own folder, which holds prompts/, game_logs/ and results/.
+#
+# Upstream quirks are preserved verbatim rather than silently "fixed":
+#   * alfworld 'eval_mix' contains `--trial_namen` (a typo) in one command.
+#   * webshop 'webshop_local' passes `--socket` with no value, because
+#     SOCKET_NAME is only assigned in a commented-out line upstream; the word
+#     disappears and `--model_local` becomes its argument.
+#   * some alfworld blocks end a command with a trailing-comment line
+#     (`# --end_index \`), which bash treats as a comment.
+#   * commands whose output the original script echoed in between are still
+#     executed in the same order; only the echo chatter was dropped.
+
+suite: webshop
+runner_dir: webshop_runs
+python: python3
+
+experiments:
+
+  webshop_local:
+    - script: run_webshop_adapted.py
+      args: [--llm_type, LOCAL, --socket, --model_local, Qwen/Qwen2.5-3B-Instruct, --start, "0", --num_env, "100", --agent, act, --max_model_len, "16000", --quantization, "0", --results_folder, results/v5_16K, --seed, "42"]
+  webshop_api:
+    - script: run_webshop_adapted.py
+      args: [--llm_type, NORMAL, --start, "0", --num_env, "100", --agent, act, --results_folder, results/v6_api_paper, --seed, "42"]
+  webshop_api_chat:
+    - script: run_webshop_adapted.py
+      args: [--llm_type, CHAT, --start, "0", --num_env, "30", --agent, ssa, --results_folder, results/v6_api, --seed, "42"]
+  webshop_eval:
+    - script: run_webshop_adapted.py
+      args: [--llm_type, NORMAL, --start, "0", --num_env, "100", --agent, ssa, --results_folder, results/v6_api_paper, --seed, "42"]
+    - script: run_webshop_adapted.py
+      args: [--llm_type, NORMAL, --start, "0", --num_env, "100", --agent, stateact-no-state, --results_folder, results/v6_api_paper, --seed, "42"]

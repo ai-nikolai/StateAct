@@ -1,0 +1,347 @@
+# Named experiments for the alfworld benchmark.
+#
+# This file replaces the repeated `if [ $1 == "name" ]; then python3 <script> ...
+# fi;` blocks that used to live in run_alfworld_eval.sh.
+#
+# Every argument list below was generated mechanically from that script: it was
+# re-run with `python3` replaced by a NUL-bounded printf, so bash performed all
+# variable expansion and word splitting exactly as it does for real, and the
+# resulting argv was recorded verbatim. Nothing was retyped by hand.
+#
+# Usage:
+#
+#     bash run_alfworld_eval.sh <name>               # wrapper, unchanged interface
+#     bash run_alfworld_eval.sh --list               # list the experiments
+#     python3 stateact/run_config.py alfworld <name>           # run one
+#     python3 stateact/run_config.py alfworld --list           # list them
+#     python3 stateact/run_config.py alfworld <name> --dry-run # print, don't run
+#
+# `runner_dir` is the working directory the original script assumed - the
+# benchmark's own folder, which holds prompts/, game_logs/ and results/.
+#
+# Upstream quirks are preserved verbatim rather than silently "fixed":
+#   * alfworld 'eval_mix' contains `--trial_namen` (a typo) in one command.
+#   * webshop 'webshop_local' passes `--socket` with no value, because
+#     SOCKET_NAME is only assigned in a commented-out line upstream; the word
+#     disappears and `--model_local` becomes its argument.
+#   * some alfworld blocks end a command with a trailing-comment line
+#     (`# --end_index \`), which bash treats as a comment.
+#   * commands whose output the original script echoed in between are still
+#     executed in the same order; only the echo chatter was dropped.
+
+suite: alfworld
+runner_dir: alfworld_runs
+python: python3
+
+experiments:
+
+  test:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "1"]
+  eval_act_only:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v5_0_1_act_only, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --keys_to_use, "[\"action\"]", --apply_correction]
+  test_ours:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_0_1_test, --start_index, "0", --num_envs, "1", --prompt_ids, "1", "0", --keys_to_use, "[\"goal\",\"thought\",\"locations_visited\",\"current_location\",\"current_inventory\",\"action\"]", --apply_correction]
+  test_ours_local:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, VLLMChat, --model, Qwen/Qwen2.5-1.5B-Instruct, --trial_name, v5_test_local, --start_index, "0", --num_envs, "1", --prompt_ids, "0", "1", --keys_to_use, "[\"goal\",\"thought\",\"locations_visited\",\"current_location\",\"current_inventory\",\"action\"]"]
+  manual:
+    - script: alfworld_run.py
+      args: [--agent, act, --llm_type, Manual, --model, llama3.1-70b, --trial_name, v4_1_6_test, --start_index, "0", --num_envs, "1", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --apply_correction, --force_run]
+  cerebras_test:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CerebrasChatText, --model, llama3.1-70b, --trial_name, v4_1_6_test, --start_index, "0", --num_envs, "1", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --apply_correction, --force_run]
+  cerebras_main:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CerebrasChatText, --model, llama3.1-70b, --trial_name, v4_1_9_cerebras, --start_index, "0", --num_envs, "134", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, CerebrasChatText, --model, llama3.1-70b, --trial_name, v4_1_9_cerebras, --start_index, "0", --num_envs, "134", --prompt_ids, "1", "0", --apply_correction, --force_run]
+  cerebras_test2:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, CerebrasChatText, --model, llama3.1-8b, --trial_name, v4_1_6_test, --start_index, "0", --num_envs, "1", --prompt_ids, "1", "0", --apply_correction, --force_run]
+  camera_ready_test:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, NvidiaChatText, --model, mistralai/mixtral-8x22b-instruct-v0.1, --trial_name, v4_1_6_test, --start_index, "0", --num_envs, "1", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --apply_correction, --force_run]
+  camera_ready_cohere:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_6_eval_correction, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_6_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --apply_correction, --force_run]
+  camera_ready_nvidia:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, NvidiaChatText, --model, mistralai/mixtral-8x22b-instruct-v0.1, --trial_name, v4_1_9_eval_correction, --start_index, "113", --num_envs, "22", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --apply_correction, --force_run]
+  camera_ready_gpt4o:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatText, --model, gpt-4o-mini, --trial_name, v4_1_7_eval_correction, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-4o-mini, --trial_name, v4_1_7_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --apply_correction, --force_run]
+  test_ours_instruct:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIText, --model, gpt-3.5-turbo-instruct, --trial_name, v4_1_5_test, --start_index, "0", --num_envs, "1", --prompt_ids, "0", "1", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]"]
+  test_ours_resample:
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "10", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "0", "1", --resample, --force_run]
+  test_ours_full:
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "1", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "0", "1", --apply_correction, --resample, --force_run]
+  test_all:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "1", --prompt_ids, "2", "0", "1", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "1", --keys_to_use, "[\"goal\",\"thought\",\"locations_visited\",\"action\"]", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, agentbench, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "1", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, jsonreact, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "1", --agent_version, "1", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "1", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIText, --model, gpt-3.5-turbo-instruct, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "1", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, CohereChat, --model, command-r-plus, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "1", --force_run]
+  test_cohere_text:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "1", --force_run]
+  test_cohere_chat:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, CohereChat, --model, command-r-plus, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "1", --force_run]
+  eval_mix:
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"thought\",\"action\"]", --prompt_ids, "1", "0", --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, jsonreact, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"plan\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"locations_visited\",\"current_location\",\"current_inventory\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"plan\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"plan\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_namen, v4_1_2_eval_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --resample]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"locations_visited\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"locations_visited\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --resample]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"locations_visited\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction, --resample]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --resample]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_inventory\",\"current_location\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --resample]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"locations_visited\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+  eval_remaining:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"locations_visited\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"locations_visited\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"locations_visited\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --resample, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --resample, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval_correction_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --resample, --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --resample, --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --resample, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --resample, --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval_correction_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --resample, --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_resample, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --resample, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction_resample, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --force_run, --apply_correction, --resample]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval_resample, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --resample, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_2_eval_correction_resample, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --force_run, --apply_correction, --resample]
+  test_ours_text:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "1", --keys_to_use, "[\"goal\",\"current_location\",\"locations_visited\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+  eval_ours_text:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+  eval_react1:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --force_run]
+  eval_additional_1106:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"current_location\",\"current_inventory\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"current_location\",\"current_inventory\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+  eval_instruct:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIText, --model, gpt-3.5-turbo-instruct, --trial_name, v4_1_5_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIText, --model, gpt-3.5-turbo-instruct, --trial_name, v4_1_5_eval_correction, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --force_run, --apply_correction]
+  eval_instruct_extra:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIText, --model, gpt-3.5-turbo-instruct, --trial_name, v4_1_5_eval, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --force_run]
+  eval_instruct_additional:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIText, --model, gpt-3.5-turbo-instruct, --trial_name, v4_1_5_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+  eval_extra_1106:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+  eval_extra:
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction, --resample]
+  test_davinci_002:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIText, --model, davinci-002, --trial_name, v4_1_2_test, --start_index, "0", --num_envs, "1", --prompt_ids, "1", "0", --force_run]
+  eval_additional_0125:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_3_eval, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_3_eval_correction, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_3_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_3_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_3_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0125, --trial_name, v4_1_3_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+  action_only_eval:
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"action\"]", --prompt_ids, "1", "0", --force_run]
+  eval_cohere_full:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval_correction, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"current_location\",\"current_inventory\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"current_location\",\"current_inventory\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours-text, --llm_type, CohereChatText, --model, command-r-plus, --trial_name, v4_1_4_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
+  eval_full:
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-0301, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, react, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --apply_correction, --force_run]
+    - script: alfworld_run.py
+      args: [--agent, jsonreact, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"plan\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"locations_visited\",\"current_location\",\"current_inventory\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"plan\",\"locations_visited\",\"current_location\",\"current_inventory\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"locations_visited\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"locations_visited\",\"current_location\",\"current_inventory\",\"plan\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_inventory\",\"current_location\",\"locations_visited\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
+    - script: alfworld_run.py
+      args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run]
