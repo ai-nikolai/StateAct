@@ -1,34 +1,27 @@
-import pandas as pd
-import argparse
+"""Report the overall ALFWorld success rate for one trial.
 
-def load_results(trial_name):
-    file_path = f'game_logs/alfworld_eval_{trial_name}/alfworld_results.csv'
-    df = pd.read_csv(file_path)
-    return df
+Thin CLI wrapper: the scoring logic lives in ``stateact.scoring`` so the same
+aggregation can be reused by the WebShop / TextCraft analysis notebooks.
 
-if __name__=="__main__":
+Usage (from inside ``alfworld_runs/``, where ``game_logs/`` lives):
 
-    parser = argparse.ArgumentParser()
-    
-    parser.add_argument('--trial_name', type=str, required=True, help='Name of the trial')
-    args = parser.parse_args()
-    df = load_results(args.trial_name)
+    python3 get_score.py --trial_name "baseline_14B"
 
-    df = df.astype({"success":int})
-    overall_score = df["success"].mean()
-    num_items = df["success"].count()
-    num_successful = df["success"].sum()
+Expected output:
 
-    print(f"Overall (mean) Score: {overall_score:.6f} with {num_successful} successful envs and a total of {num_items} envs.")
+    Overall (mean) Score: 0.805970 with 108 successful envs and a total of 134 envs.
+"""
 
+import os
+import sys
 
+# Make the repository root importable: this script is executed as a plain file.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
+from stateact.scoring import main  # noqa: E402
 
 
-    
-
-
-
-
-
-
+if __name__ == "__main__":
+    main()
