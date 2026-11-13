@@ -19,11 +19,9 @@
 # `runner_dir` is the working directory the original script assumed - the
 # benchmark's own folder, which holds prompts/, game_logs/ and results/.
 #
-# Upstream quirks are preserved verbatim rather than silently "fixed":
-#   * alfworld 'eval_mix' contains `--trial_namen` (a typo) in one command.
-#   * webshop 'webshop_local' passes `--socket` with no value, because
-#     SOCKET_NAME is only assigned in a commented-out line upstream; the word
-#     disappears and `--model_local` becomes its argument.
+# Upstream quirks and fixes:
+#   * alfworld 'eval_mix' had `--trial_namen` (a typo) in one command, which
+#     made that command fail argparse. It is recorded here as `--trial_name`.
 #   * some alfworld blocks end a command with a trailing-comment line
 #     (`# --end_index \`), which bash treats as a comment.
 #   * commands whose output the original script echoed in between are still
@@ -129,7 +127,7 @@ experiments:
     - script: alfworld_run.py
       args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --apply_correction, --force_run]
     - script: alfworld_run.py
-      args: [--agent, ours, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_namen, v4_1_2_eval_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --resample]
+      args: [--agent, ours, --llm_type, OpenAIChatTextSampling, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_resample, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --resample]
     - script: alfworld_run.py
       args: [--agent, ours, --llm_type, OpenAIChatText, --model, gpt-3.5-turbo-1106, --trial_name, v4_1_2_eval_correction, --start_index, "0", --num_envs, "135", --keys_to_use, "[\"goal\",\"locations_visited\",\"current_location\",\"current_inventory\",\"thought\",\"action\"]", --prompt_ids, "1", "0", --force_run, --apply_correction]
     - script: alfworld_run.py

@@ -19,11 +19,11 @@
 # `runner_dir` is the working directory the original script assumed - the
 # benchmark's own folder, which holds prompts/, game_logs/ and results/.
 #
-# Upstream quirks are preserved verbatim rather than silently "fixed":
-#   * alfworld 'eval_mix' contains `--trial_namen` (a typo) in one command.
-#   * webshop 'webshop_local' passes `--socket` with no value, because
-#     SOCKET_NAME is only assigned in a commented-out line upstream; the word
-#     disappears and `--model_local` becomes its argument.
+# Upstream quirks and fixes:
+#   * webshop 'webshop_local' used `--socket $SOCKET_NAME`, but SOCKET_NAME was
+#     only assigned in a commented-out line upstream. The word disappeared and
+#     argparse rejected the dangling `--socket`. The intended socket path
+#     (`README.md`: `mkdir tmp` + `-v ./tmp:/tmp`) is now passed explicitly.
 #   * some alfworld blocks end a command with a trailing-comment line
 #     (`# --end_index \`), which bash treats as a comment.
 #   * commands whose output the original script echoed in between are still
@@ -37,7 +37,7 @@ experiments:
 
   webshop_local:
     - script: run_webshop_adapted.py
-      args: [--llm_type, LOCAL, --socket, --model_local, Qwen/Qwen2.5-3B-Instruct, --start, "0", --num_env, "100", --agent, act, --max_model_len, "16000", --quantization, "0", --results_folder, results/v5_16K, --seed, "42"]
+      args: [--llm_type, LOCAL, --socket, ./tmp/webshop.sock, --model_local, Qwen/Qwen2.5-3B-Instruct, --start, "0", --num_env, "100", --agent, act, --max_model_len, "16000", --quantization, "0", --results_folder, results/v5_16K, --seed, "42"]
   webshop_api:
     - script: run_webshop_adapted.py
       args: [--llm_type, NORMAL, --start, "0", --num_env, "100", --agent, act, --results_folder, results/v6_api_paper, --seed, "42"]

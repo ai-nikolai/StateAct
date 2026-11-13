@@ -43,6 +43,12 @@ decisions behind it. It is meant to be updated as follow-up work lands.
    prompt builders from the repository root.
 7. **Mutable default arguments** in `stateact.prompts.get_prompt_example`
    (`keys_to_use=[]`, `key_renaming={}`) were replaced with `None` defaults.
+8. **Two recorded experiments were already broken upstream.** ALFWorld
+   `eval_mix` contained `--trial_namen`, and WebShop `webshop_local` passed
+   `--socket` with no value (argparse rejects both). The experiment tables now
+   record `--trial_name` and `./tmp/webshop.sock`; tests guard against either
+   regression. The old shell scripts were left alone because v2 is a refactor
+   branch, but the same fixes apply there.
 
 ## Dependency audit
 

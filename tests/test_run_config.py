@@ -71,6 +71,37 @@ def test_commands_for_unknown_experiment(alfworld_suite):
         run_config.commands_for(alfworld_suite, "no-such-experiment")
 
 
+def test_alfworld_tables_do_not_contain_the_old_trial_namen_typo(alfworld_suite):
+    for name in run_config.list_experiments(alfworld_suite):
+        for command in run_config.commands_for(alfworld_suite, name):
+            assert "--trial_namen" not in (command.get("args") or []), name
+
+
+def test_webshop_value_options_are_not_dangling(webshop_suite):
+    value_options = {
+        "--llm_type",
+        "--socket",
+        "--model_local",
+        "--start",
+        "--num_env",
+        "--agent",
+        "--max_model_len",
+        "--quantization",
+        "--results_folder",
+        "--seed",
+    }
+    for name in run_config.list_experiments(webshop_suite):
+        for command in run_config.commands_for(webshop_suite, name):
+            args = command.get("args") or []
+            for index, argument in enumerate(args):
+                if argument not in value_options:
+                    continue
+                assert index + 1 < len(args), f"{name}: {argument} has no value"
+                assert not args[index + 1].startswith("--"), (
+                    f"{name}: {argument} is followed by another option"
+                )
+
+
 def test_format_command_quotes_arguments():
     rendered = run_config.format_command(
         "python3", "script.py", ["--name", "hello world", "--flag"]
