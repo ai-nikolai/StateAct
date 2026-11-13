@@ -34,6 +34,7 @@ model_name="gpt-3.5-turbo-instruct"
 
 API_KEY = os.environ.get("OPENAI_API_KEY")
 LLM_URL = os.environ.get("STATEACT_LLM_URL")
+LLM_API_KEY_ENV = os.environ.get("STATEACT_LLM_API_KEY_ENV", "OPENAI_API_KEY")
 # HF_auth_token = ...
 # cache_dir=...
 
@@ -174,7 +175,7 @@ else:
             stop=stop,
             max_tokens=max_new_tokens_,
             api_key=API_KEY,
-            api_key_env="OPENAI_API_KEY",
+            api_key_env=LLM_API_KEY_ENV,
         )
         if 'instruct' in model_name or 'davinci' in model_name:
             url = LLM_URL or "https://api.openai.com/v1/completions"
