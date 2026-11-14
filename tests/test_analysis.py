@@ -91,6 +91,26 @@ def test_create_pivot_requires_env_type(tmp_path):
         alfworld.create_pivot(pd.DataFrame({"model": ["m"], "prompt_name": ["p"]}))
 
 
+def test_load_data_makes_list_details_hashable(tmp_path):
+    from stateact.results import RunLogger
+
+    logger = RunLogger(
+        "alfworld", agent="stateact", model="m", trial="demo",
+        results_folder=str(tmp_path),
+    )
+    logger.log_episode(
+        env_idx=0, env_type="put", success=True, reward=1, steps=1,
+        details={"keys_to_use": ["goal", "action"]},
+    )
+    logger.finish()
+
+    frame = alfworld.load_data("demo", base_folder=str(tmp_path))
+    assert isinstance(frame["keys_to_use"].iloc[0], str)
+
+    _grouped, summary = alfworld.analyse_data_basic(frame, num_envs=1)
+    assert not summary.empty
+
+
 def test_summarise_trial(tmp_path):
     trial_dir = tmp_path / "game_logs" / "alfworld_eval_demo"
     trial_dir.mkdir(parents=True)

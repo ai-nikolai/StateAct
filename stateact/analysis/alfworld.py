@@ -10,6 +10,7 @@ The only behavioural change is that the hard-coded ``/135`` denominator is now
 a ``num_envs`` argument (default 135), so smaller runs can be analysed too.
 """
 
+import json
 import os
 
 from stateact import results
@@ -111,6 +112,17 @@ def load_data(trial_name, base_folder=DEFAULT_BASE_FOLDER,
         frame["num_of_steps"] = frame["steps"]
     if "total_reward" not in frame.columns and "reward" in frame.columns:
         frame["total_reward"] = frame["reward"]
+
+    # JSON details can contain lists/dicts (e.g. keys_to_use). Grouping and
+    # pivot operations need hashable values, so store those as JSON strings.
+    for column in frame.columns:
+        values = frame[column]
+        if values.map(lambda value: isinstance(value, (list, dict, tuple))).any():
+            frame[column] = values.map(
+                lambda value: json.dumps(value, sort_keys=True)
+                if isinstance(value, (list, dict, tuple)) else value
+            )
+
     for column in ("early_stop", "error"):
         if column in frame.columns:
             frame[column] = frame[column].map(convert_string_to_bool_int)
