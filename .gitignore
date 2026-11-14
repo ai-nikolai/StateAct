@@ -1,5 +1,4 @@
 *tmp*
-alfworld_runs/archive/*
 alfworld_runs/game_logs/*
 __pycache__
 .pytest_cache/

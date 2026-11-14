@@ -43,7 +43,7 @@ def _install_fake_requests(monkeypatch, responses):
     module.RequestException = RequestException
     module.post = post
     monkeypatch.setitem(sys.modules, "requests", module)
-    monkeypatch.setattr(agents.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(agents.time, "sleep", lambda _seconds: None)
     return calls, RequestException
 
 
@@ -225,14 +225,13 @@ def _install_fake_vllm(monkeypatch):
 
     class FakeTokenizer:
         @classmethod
-        def from_pretrained(cls, model):
+        def from_pretrained(cls, _model):
             return cls()
 
         def encode(self, text):
             return text.split()
 
-        def apply_chat_template(self, messages, tokenize=False,
-                                add_generation_prompt=True):
+        def apply_chat_template(self, messages, **_kwargs):
             return "CHAT:" + messages[0]["content"]
 
     fake_transformers.AutoTokenizer = FakeTokenizer
@@ -243,7 +242,7 @@ def _install_fake_vllm(monkeypatch):
         def __init__(self, **kwargs):
             self.kwargs = kwargs
 
-        def generate(self, prompts, params):
+        def generate(self, _prompts, _params):
             return [SimpleNamespace(outputs=[SimpleNamespace(text="generated")])]
 
     class SamplingParams:

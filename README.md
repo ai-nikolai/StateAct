@@ -16,9 +16,13 @@ For the shared library:
 
 ```bash
 pip install -e ".[dev]"   # core package + pytest / ruff / pandas / pyyaml
-pytest
-ruff check stateact tests
+
+make test     # pytest
+make lint     # ruff + shell syntax checks
+make build    # wheel + sdist
 ```
+
+The same checks run in `.github/workflows/ci.yml`.
 
 ---
 
@@ -107,7 +111,7 @@ See [`scripts/README.md`](scripts/README.md) for overrides (`MODEL`,
 ![Results](images/results.png)
 
 ## Reference:
-Please cite StateAct:
+A machine-readable citation is in [`CITATION.cff`](CITATION.cff). Please cite StateAct:
 ```bibtex
 @article{rozanov2024stateactstatetrackingreasoning,
       title={StateAct: State Tracking and Reasoning for Acting and Planning with Large Language Models}, 

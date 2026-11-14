@@ -1,6 +1,5 @@
 import os
 import json
-import re
 import sys
 import argparse
 from datetime import datetime
@@ -14,8 +13,6 @@ if _REPO_ROOT not in sys.path:
 
 # Shared parsing helpers (extracted verbatim from this file in the v2 refactor).
 from stateact.parsing import (  # noqa: E402
-    ENV_TYPES,
-    get_env_type,
     transform_put_action,
     get_observation_agentbench_thought,
     get_observation_react_thought,
@@ -31,7 +28,6 @@ from stateact.parsing import (  # noqa: E402
     get_action_jsonstate,
     get_action_stringstate,
     get_action_agentbench,
-    process_action,
     process_ob,
 )
 
@@ -46,7 +42,6 @@ from stateact.results import RunLogger  # noqa: E402
 # repetitive try/except blocks and the ~170 line if/elif chain that used to
 # be here). `available_providers()` prints the same availability summary.
 from stateact.llm import (  # noqa: E402
-    AGENT_MODEL_MAPPING,
     available_providers,
     get_agent_and_model,
 )
@@ -55,13 +50,6 @@ from stateact.llm import (  # noqa: E402
 # (generate_prompt_from_example / save_prompt_file / get_prompt_example ...
 # moved out of this file in the v2 refactor).
 from stateact.prompts import (  # noqa: E402
-    BASE_PROMPT1,
-    BASE_PROMPT2,
-    CLOSING_MARK,
-    HINTS,
-    INSTRUCTIONS,
-    OPENING_MARK,
-    TASK_MESSAGE,
     generate_prompt_from_example,
     get_prompt_example,
     save_prompt_file,

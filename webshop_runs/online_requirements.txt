@@ -1,3 +1,0 @@
-# API models now use the single requests-based backend in stateact.agents,
-# so the openai/anthropic SDKs are no longer needed.
--r requirements.txt

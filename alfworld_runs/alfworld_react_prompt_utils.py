@@ -7,7 +7,6 @@ import os
 # repository root as well.
 BASE_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts")
 
-# react_prompt_file_name = "alfworld_react_prompts_original_v3.json"
 react_prompt_file_name = "alfworld_react_prompts_original_v3_corrected.json"
 react_prompt_file = os.path.join(BASE_FOLDER, react_prompt_file_name)
 with open(react_prompt_file, "r") as file:
@@ -26,9 +25,9 @@ with open(agentbench_prompt_file, "r") as file:
     original_agentbench_prompts_v2 = json.load(file)
 
 
-def return_react_examples(env_type, prompt_ids=[1,0]):
+def return_react_examples(env_type, prompt_ids=None):
     """Given the env type return a react example."""
-    index_list = prompt_ids
+    index_list = prompt_ids or [1, 0]
     target_trace = ""
     for example_idx in range(len(index_list)):
         if example_idx>0:
@@ -75,11 +74,9 @@ def extract_command_and_format(command, version=1, think_key="think", action_key
     return sys_response, env_observation
 
 
-def return_json_react_examples(env_type, prompt_ids=[1,0], version=1, think_key="think", action_key="action", return_list=False):
-    """
-    Given the env type return a react example.
-
-    """
+def return_json_react_examples(env_type, prompt_ids=None, version=1, think_key="think", action_key="action", return_list=False):
+    """Given the env type return a json react example."""
+    prompt_ids = prompt_ids or [1, 0]
     target_trace = ""
     if return_list:
         target_trace_list = []
@@ -128,83 +125,3 @@ def return_agentbench_prompts(env_type, return_base=True, version=2):
         return prompt_example, base_prompt
     else:
         return prompt_example
-
-
-def check_all_json(react_json_list):
-    """Assumes obs, sys_response alternating."""
-    for idx, obs in enumerate(react_json_list):
-        try:
-            if idx%2 == 1:
-                tmp = json.loads(obs)
-        except Exception as e:
-            return False, obs, idx, str(e)
-    return True, None, None, None
-
-if __name__=="__main__":
-    env_type = "puttwo"
-    prompt_trace = return_json_react_examples(env_type, prompt_ids=[1,0], think_key="think", action_key="action", return_list=False)
-    # print(prompt_trace)
-
-    # CHECKING JSON REACT PROMPTS.
-    env_types = ["clean","cool","examine","heat","put","puttwo"]
-    indexs=[0,1,2]
-    versions = [1,2,3]
-    global_success = True
-    for env_type in env_types:
-        for index in indexs:
-            for version in versions:
-                list1 = return_json_react_examples(env_type, prompt_ids=[index],  version=version, think_key="think", action_key="action", return_list=True)
-                success, example, json_idx, error_message= check_all_json(list1[0])
-                if not success:
-                    global_success = False
-                    print("\n\n===")
-                    print(f"FAILED: env:{env_type}, react_num:{index}, json_index:{json_idx}, version:{version}")
-                    print("--")
-                    print(example)
-                    print("--")
-                    print(error_message)
-
-
-    # CHECKING REACT PROMPTS:
-    import itertools
-    for env_type in env_types:
-        for prompt_ids in itertools.permutations([0,1,2]):
-            prompt_example = return_react_examples(env_type,prompt_ids)
-
-            constructed_prompt = ""
-            for idx, ex_id in enumerate(prompt_ids):
-                if idx>0:
-                    constructed_prompt += "\n\n"
-                constructed_prompt += original_react_prompts[f"react_{env_type}_{ex_id}"]
-
-            assert constructed_prompt==prompt_example, f"React prompts don't match up for: {env_type}, {prompt_ids}"
-
-            current_index = 0     
-            for idx, ex_id in enumerate(prompt_ids):
-                tmp = return_react_examples(env_type,[ex_id])
-                assert tmp==prompt_example[current_index:current_index+len(tmp)], f"Failed for: {env_type}_{idx}__+{ex_id}"
-                current_index += len(tmp)+2
-
-    # CHECKING JSON REACT PROMPTS:
-    for env_type in env_types:
-        for version in range(1,1+3):
-            for prompt_ids in itertools.permutations([0,1,2]):
-                j_prompt_example = return_json_react_examples(env_type,prompt_ids, version=version)
-
-                current_index = 0     
-                for idx, ex_id in enumerate(prompt_ids):
-                    j_tmp = return_json_react_examples(env_type,[ex_id], version=version)
-                    j_len = len(j_tmp)
-                    assert j_tmp==j_prompt_example[current_index:current_index+j_len], f"Failed for: {env_type}_{idx}__+ex{ex_id}__+v+{version}"
-                    current_index += j_len+2
-
-
-    if global_success:
-        print("All prompts are correct")
-
-
-
-    # print(list1)
-    # print(len(list1))
-
-    # EOF

@@ -1,5 +1,7 @@
 # If you have a PBS (or similarly SLURM) cluster.
 
+The ready-to-use A100 jobs live in [`../../scripts/pbs/`](../../scripts/pbs).
+
 ## Prepare the image and run:
 1. Download image: (e.g. into webshop_run)
 ```bash
@@ -45,5 +47,5 @@ curl --unix-socket ./tmp/webshop.sock localhost/abc
 ---
 ## To then Run Webshop in the same PBS script:
 ```bash
-python3 WebShop_adapted.py --llm_type LOCAL --socket ./tmp/webshop.sock --model_local "Qwen/Qwen2.5-0.5B-Instruct"
+python3 run_webshop_adapted.py --llm_type LOCAL --socket ./tmp/webshop.sock --model_local "Qwen/Qwen2.5-0.5B-Instruct"
 ```

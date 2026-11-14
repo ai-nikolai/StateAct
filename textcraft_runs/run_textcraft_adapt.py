@@ -2,22 +2,11 @@ import json
 import os
 import sys
 import re
-from tqdm import tqdm
-
-from tenacity import (
-    retry,
-    stop_after_attempt, # type: ignore
-    wait_random_exponential, # type: ignore
-    RetryError
-)
 import copy
-import ast
-import numpy as np
-# sys.path.append("../EnvironmentWebs/environments/")
-from textcraft import TextCraft
-
-import random #for the seed
 import argparse
+
+from tqdm import tqdm
+from textcraft import TextCraft
 
 # Make the repository root importable (this script is run as a plain file).
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -98,7 +87,6 @@ Here [count] is a place holder for number of object, and [item] is placeholder f
 
 '''
 
-# @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(15))
 def llm(prompt, stop=["\n"], max_tokens=150, plan=False):
     """Call the configured GPT/URL model (local models use a closure below)."""
     if plan:
@@ -311,7 +299,7 @@ def clean_action(action, prompt_type="react"):
             return action
 
 
-def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, output_term=True, prompt_type="react", verbose=False):
+def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, prompt_type="react", verbose=False):
     print(f"\n\n\n=============================\nSTARTING TEXTCRAFT RUN ADAPT:")
     if isinstance(prompt, list): 
         init_prompt = copy.copy(prompt)
