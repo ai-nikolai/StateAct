@@ -15,8 +15,10 @@ that are shared between ALFWorld, WebShop and TextCraft:
     Maps ``--llm_type`` names to those agents and resolves the model.
 :mod:`stateact.prompts`
     Few-shot prompt assembly and the ``--agent`` -> prompt-builder dispatch.
+:mod:`stateact.results`
+    The unified ``summary.csv`` / ``episodes.csv`` format and ``RunLogger``.
 :mod:`stateact.scoring`
-    Reading and aggregating the ``*_results.csv`` logs.
+    Reading and aggregating run logs.
 :mod:`stateact.analysis`
     Notebook-compatible helpers for ALFWorld, WebShop and TextCraft results.
 :mod:`stateact.run_config`

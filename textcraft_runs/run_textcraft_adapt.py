@@ -1,7 +1,6 @@
 import json
 import os
 import sys
-import json
 import re
 from tqdm import tqdm
 

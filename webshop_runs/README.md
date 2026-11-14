@@ -50,6 +50,16 @@ python3 run_webshop_adapted.py \
 ```
 
 
+## Results
+
+Runs write the shared StateAct result files into the folder passed as
+`--results_folder` (default `results/stateact_local/`):
+
+```text
+summary.csv    # one row per agent/run
+episodes.csv   # one row per environment
+```
+
 ## In case you need to run it on an HPC cluster (e.g. PBS or SLURM) and you don't have access to docker
 See `hpc_scripts/README.md` for more details on how to run using Singularity.
 

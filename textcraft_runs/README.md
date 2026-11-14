@@ -22,6 +22,16 @@ python3 run_textcraft_adapt.py \
 ```
 
 
+## Results
+
+Runs write the shared StateAct result files into `--results_folder`:
+
+```text
+summary.csv    # one row per agent/run
+episodes.csv   # one row per environment
+ADaPT_*.json   # per-run traces
+```
+
 ---
 **Acknowledgements:**
 
