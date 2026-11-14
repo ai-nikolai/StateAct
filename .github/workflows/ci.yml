@@ -40,7 +40,6 @@ jobs:
           alfworld_runs/alfworld_react_prompt_utils.py
           alfworld_runs/get_score.py
           textcraft_runs/run_textcraft_adapt.py
-          textcraft_runs/run_textcraft_thread.py
           webshop_runs/run_webshop_adapted.py
 
       - name: Check the PBS scripts
@@ -48,7 +47,9 @@ jobs:
 
   test:
     name: Test (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    # ubuntu-latest (26.04) no longer ships a Python 3.9 build in
+    # actions/setup-python. Keep 3.9 covered on the 22.04 image.
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
