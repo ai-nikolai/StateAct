@@ -1,5 +1,7 @@
 """Tests for stateact.scoring."""
 
+import sys
+
 import pytest
 
 from stateact import scoring
@@ -49,6 +51,39 @@ def test_summarise_rewards(rewards, expected_score, expected_successful):
     assert result["score"] == pytest.approx(expected_score)
     assert result["num_items"] == len(rewards)
     assert result["num_successful"] == expected_successful
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [("True", 1), ("False", 0), ("1", 1), ("0", 0), ("true", 1), ("", 0)],
+)
+def test_to_success(value, expected):
+    assert scoring._to_success(value) == expected
+
+
+def test_score_rows_without_pandas():
+    rows = [{"success": "True"}, {"success": "False"}, {"success": "1"}]
+    result = scoring.score_dataframe(rows)
+    assert result["score"] == pytest.approx(2 / 3)
+    assert result["num_items"] == 3
+    assert result["num_successful"] == 2
+
+
+def test_load_results_stdlib_fallback(tmp_path, monkeypatch):
+    trial_dir = tmp_path / "game_logs" / "alfworld_eval_demo"
+    trial_dir.mkdir(parents=True)
+    (trial_dir / "alfworld_results.csv").write_text(
+        "success,early_stop\nTrue,\nFalse,\nTrue,ENV_ERROR\n"
+    )
+
+    monkeypatch.setitem(sys.modules, "pandas", None)
+    rows = scoring.load_results(
+        "demo", base_folder=str(tmp_path / "game_logs")
+    )
+    assert isinstance(rows, list)
+    result = scoring.score_dataframe(rows)
+    assert result == {"score": pytest.approx(2 / 3), "num_items": 3,
+                      "num_successful": 2}
 
 
 def test_results_path():

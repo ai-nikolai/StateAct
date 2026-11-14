@@ -4,8 +4,9 @@
 CLI over this module so that the WebShop / TextCraft analysis notebooks can
 reuse the same aggregation instead of re-implementing it.
 
-pandas is imported lazily so that ``import stateact.scoring`` (and the
-dependency-free parts of this package) keep working in a minimal environment.
+pandas is used when available, but a standard-library ``csv`` fallback keeps
+``get_score.py`` working in the benchmark environments (which do not install
+pandas).
 """
 
 __all__ = [
@@ -34,25 +35,62 @@ def results_path(trial_name, base_folder=DEFAULT_BASE_FOLDER,
     return os.path.join(base_folder, f"{eval_name}_{trial_name}", csv_name)
 
 
+def _read_csv_rows(path):
+    """Read a results CSV as a list of dicts (stdlib fallback)."""
+    import csv
+
+    with open(path, newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def _to_success(value):
+    """Parse the boolean spellings written by ALFWorld into 0/1."""
+    if isinstance(value, bool):
+        return int(value)
+    text = str(value).strip().lower()
+    if text in ("1", "true", "yes"):
+        return 1
+    if text in ("0", "false", "no", ""):
+        return 0
+    return int(float(value))
+
+
 def load_results(trial_name, base_folder=DEFAULT_BASE_FOLDER,
                  eval_name=DEFAULT_EVAL_NAME, csv_name=DEFAULT_CSV_NAME):
-    """Load the ``alfworld_results.csv`` for a trial as a DataFrame."""
-    import pandas as pd
+    """Load the ``alfworld_results.csv`` for a trial.
 
-    return pd.read_csv(results_path(trial_name, base_folder, eval_name, csv_name))
+    Returns a pandas DataFrame when pandas is installed, otherwise a list of
+    row dicts. Both are accepted by :func:`score_dataframe`.
+    """
+    path = results_path(trial_name, base_folder, eval_name, csv_name)
+    try:
+        import pandas as pd
+    except ImportError:
+        return _read_csv_rows(path)
+    return pd.read_csv(path)
 
 
 def score_dataframe(df, success_column=SUCCESS_COLUMN):
-    """Aggregate a results DataFrame into ``{score, num_items, num_successful}``.
+    """Aggregate a results DataFrame (or row list) into score metrics.
 
     ``score`` is the mean of the success column cast to int, i.e. the overall
     success rate reported in the paper.
     """
-    df = df.astype({success_column: int})
+    if hasattr(df, "astype") and hasattr(df, "columns"):
+        column = df.astype({success_column: int})[success_column]
+        return {
+            "score": column.mean(),
+            "num_items": column.count(),
+            "num_successful": column.sum(),
+        }
+
+    values = [_to_success(row[success_column]) for row in df]
+    total = len(values)
+    successful = sum(values)
     return {
-        "score": df[success_column].mean(),
-        "num_items": df[success_column].count(),
-        "num_successful": df[success_column].sum(),
+        "score": successful / total if total else 0.0,
+        "num_items": total,
+        "num_successful": successful,
     }
 
 

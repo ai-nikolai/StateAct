@@ -12,6 +12,8 @@ decisions behind it. It is meant to be updated as follow-up work lands.
   tables and command lines keep working.
 - `stateact/analysis/` was added with notebook-compatible ALFWorld helpers and
   small WebShop/TextCraft loaders.
+- `stateact.scoring` keeps a stdlib CSV fallback, so `get_score.py` works in
+  `env_alfworld` (which does not install pandas).
 - `scripts/pbs/` holds A100 jobs for ALFWorld and WebShop, with
   `scripts/submit_pbs.sh` as the submission helper.
 - The ALFWorld dependency is isolated in `stateact/envs/alfworld.py`
@@ -19,7 +21,7 @@ decisions behind it. It is meant to be updated as follow-up work lands.
   reads, and the benchmark is pinned to `alfworld==0.4.2`,
   `textworld==1.7.0`, `fast-downward-textworld==20.6.4` (verified).
 - CI now covers agents (mocked HTTP, fake vLLM), analysis and the experiment
-  tables: 166 tests, no network/GPU/API key.
+  tables: 174 tests, no network/GPU/API key.
 
 ## What v2 already does well
 
@@ -127,7 +129,7 @@ the character-based fallback is used for logging only. The resampling path
 - `pytest` on Python 3.9-3.12
 - a wheel/sdist build and import check
 
-The 166 tests cover parsing, prompt dispatch, the experiment tables, scoring,
+The 174 tests cover parsing, prompt dispatch, the experiment tables, scoring,
 the URL/HTTP agent (mocked), the vLLM agent (fake modules), the analysis
 helpers and the model registry. None of them need ALFWorld, vLLM, an API key
 or a GPU.
