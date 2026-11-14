@@ -35,8 +35,9 @@ stateact/
   agents.py       # local vLLM + one requests-based URL backend + manual
   llm.py          # --llm_type registry (legacy names kept as aliases)
   envs/           # optional benchmark adapters (ALFWorld reset/step/skip)
-  scoring.py      # aggregate *_results.csv logs
-  analysis/       # notebook-compatible ALFWorld/WebShop/TextCraft helpers
+  results.py      # unified summary.csv / episodes.csv + RunLogger
+  scoring.py      # score one run (stdlib CSV fallback)
+  analysis/       # loaders for the unified format + notebook compatibility
   run_config.py   # runs named experiments from experiments/*.yaml
 experiments/
   alfworld.yaml   # replaces the ~1000-line if/elif shell registry
@@ -55,10 +56,22 @@ aliases for the same URL backend, so existing commands keep working.
 
 For analysis:
 
+All three benchmarks now write the same two files:
+
+```text
+<results_folder>/<trial>/
+  summary.csv    # one row per agent/run
+  episodes.csv   # one row per environment episode
+```
+
+Benchmark-specific values are kept in a `details` JSON column. The analysis
+loaders also understand the old `alfworld_results.csv`, WebShop `scores.csv`
+and TextCraft `results.csv` layouts.
+
 ```bash
-python -m stateact.analysis alfworld --trial-name baseline_14B --base-folder alfworld_runs/game_logs
-python -m stateact.analysis webshop  webshop_runs/results/v6_api_paper/scores.csv --best
-python -m stateact.analysis textcraft textcraft_runs/results/results.csv
+python -m stateact.analysis alfworld --trial-name baseline_14B --base-folder alfworld_runs/results
+python -m stateact.analysis webshop  webshop_runs/results/v6_api_paper --best
+python -m stateact.analysis textcraft textcraft_runs/results/v9_d3_full
 ```
 
 Named experiments can be listed or dry-run without installing ALFWorld,

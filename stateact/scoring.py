@@ -19,20 +19,35 @@ __all__ = [
     "main",
 ]
 
-# Defaults match the layout alfworld_run.py writes:
+# Unified layout written by alfworld_run.py:
+#   results/<trial_name>/episodes.csv
+# The legacy layout is still recognised:
 #   game_logs/alfworld_eval_<trial_name>/alfworld_results.csv
-DEFAULT_BASE_FOLDER = "game_logs"
-DEFAULT_EVAL_NAME = "alfworld_eval"
-DEFAULT_CSV_NAME = "alfworld_results.csv"
+DEFAULT_BASE_FOLDER = "results"
+DEFAULT_EVAL_NAME = ""
+DEFAULT_CSV_NAME = "episodes.csv"
 SUCCESS_COLUMN = "success"
 
 
 def results_path(trial_name, base_folder=DEFAULT_BASE_FOLDER,
                  eval_name=DEFAULT_EVAL_NAME, csv_name=DEFAULT_CSV_NAME):
-    """Return the path of the results CSV for ``trial_name``."""
+    """Return the results CSV for ``trial_name`` (new layout, then legacy)."""
     import os
 
-    return os.path.join(base_folder, f"{eval_name}_{trial_name}", csv_name)
+    folder = f"{eval_name}_{trial_name}" if eval_name else trial_name
+    path = os.path.join(base_folder, folder, csv_name)
+    if os.path.exists(path):
+        return path
+
+    for legacy in (
+        os.path.join(base_folder, f"alfworld_eval_{trial_name}",
+                     "alfworld_results.csv"),
+        os.path.join("game_logs", f"alfworld_eval_{trial_name}",
+                     "alfworld_results.csv"),
+    ):
+        if os.path.exists(legacy):
+            return legacy
+    return path
 
 
 def _read_csv_rows(path):

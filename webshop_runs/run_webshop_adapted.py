@@ -9,6 +9,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from stateact.agents import url_chat, url_completion  # noqa: E402
+from stateact.results import RunLogger  # noqa: E402
 
 
 parser = argparse.ArgumentParser()
@@ -1955,7 +1956,6 @@ if "ta" in experiments_to_run:
   print(sum(steps14)/len(steps14))
 
   
-current_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 FOLDER = args.results_folder
 
 import string
@@ -1975,39 +1975,71 @@ clean_model_name = clean_model_string(MODEL)
 
 os.makedirs(FOLDER, exist_ok=True)
 
-# Check if file exists and create if not
-if not os.path.exists(os.path.join(FOLDER,'scores.csv')):
-    with open(os.path.join(FOLDER,'scores.csv'), 'w') as f:
-        f.write("agent,date,model,avg_score,success_rate,failure_rate\n")
+RESULT_ROOT = os.path.dirname(os.path.normpath(FOLDER)) or "."
+TRIAL_NAME = os.path.basename(os.path.normpath(FOLDER))
 
-try:
-  with open(os.path.join(FOLDER,'scores.csv'), 'a') as f:
-    if "act" in experiments_to_run:
-        f.write(f"act,{current_date},{clean_model_name},{sc0[0]},{sc0[1]},{sc0[2]}\n")
-    if "react" in experiments_to_run:
-        f.write(f"react,{current_date},{clean_model_name},{sc1[0]},{sc1[1]},{sc1[2]}\n")
-    if "stateact" in experiments_to_run:
-        f.write(f"stateact,{current_date},{clean_model_name},{sc6[0]},{sc6[1]},{sc6[2]}\n") 
-    if "stateact-no-thoughts" in experiments_to_run:
-        f.write(f"stateact-no-thoughts,{current_date},{clean_model_name},{sc9[0]},{sc9[1]},{sc9[2]}\n")
-    if "stateact-no-goal" in experiments_to_run:
-        f.write(f"stateact-no-goal,{current_date},{clean_model_name},{sc5[0]},{sc5[1]},{sc5[2]}\n")
-    if "stateact-no-state" in experiments_to_run:
-        f.write(f"stateact-no-state,{current_date},{clean_model_name},{sc11[0]},{sc11[1]},{sc11[2]}\n")
-    if "ssa" in experiments_to_run:
-        f.write(f"ssa,{current_date},{clean_model_name},{sc7[0]},{sc7[1]},{sc7[2]}\n")
-    if "stateact2" in experiments_to_run:
-        f.write(f"stateact2,{current_date},{clean_model_name},{sc13[0]},{sc13[1]},{sc13[2]}\n")
-    if "gsta" in experiments_to_run:
-        f.write(f"gsta,{current_date},{clean_model_name},{sc3[0]},{sc3[1]},{sc3[2]}\n")
 
-    if "sta" in experiments_to_run:
-        f.write(f"sta,{current_date},{clean_model_name},{sc4[0]},{sc4[1]},{sc4[2]}\n")
-    if "ga" in experiments_to_run:
-        f.write(f"ga,{current_date},{clean_model_name},{sc10[0]},{sc10[1]},{sc10[2]}\n")
-except Exception as e:
-  print("=======\nError with writing scores!")
-  print(e)
+def _fmt_time(value):
+  return time.strftime("%Y-%m-%dT%H:%M:%S", value) if value else ""
+
+
+def record_run(agent, rewards, summary, steps, started=None, finished=None):
+  logger = RunLogger(
+      "webshop",
+      agent=agent,
+      model=MODEL,
+      trial=TRIAL_NAME,
+      results_folder=RESULT_ROOT,
+      num_envs=len(rewards),
+      started_at=_fmt_time(started),
+  )
+  for offset, (reward, step_count) in enumerate(zip(rewards, steps)):
+    logger.log_episode(
+        env_idx=s + offset,
+        success=reward > 0,
+        done=True,
+        reward=reward,
+        steps=step_count,
+    )
+  logger.finish(
+      score=summary[0],
+      success_rate=summary[1],
+      failure_rate=summary[2],
+      avg_reward=sum(rewards) / len(rewards) if rewards else 0.0,
+      avg_steps=sum(steps) / len(steps) if steps else 0.0,
+      finished_at=_fmt_time(finished),
+  )
+
+
+WEBSHOP_RUNS = {
+    "act": ("res0", "sc0", "steps0", "t0s", "t0e"),
+    "react": ("res1", "sc1", "steps1", "t1s", "t1e"),
+    "ta": ("res2", "sc2", "steps2", "t2s", "t2e"),
+    "gsta": ("res3", "sc3", "steps3", "t3s", "t3e"),
+    "sta": ("res4", "sc4", "steps4", "t4s", "t4e"),
+    "stateact-no-goal": ("res5", "sc5", "steps5", "t5s", "t5e"),
+    "stateact": ("res6", "sc6", "steps6", "t6s", "t6e"),
+    "ssa": ("res7", "sc7", "steps7", "t7s", "t7e"),
+    "stateact-no-thoughts": ("res9", "sc9", "steps9", "t9s", "t9e"),
+    "ga": ("res10", "sc10", "steps10", "t10s", "t10e"),
+    "stateact-no-state": ("res11", "sc11", "steps11", "t11s", "t11e"),
+    "stateact2": ("res13", "sc13", "steps13", "t13s", "t13e"),
+}
+
+for agent, names in WEBSHOP_RUNS.items():
+  if agent not in experiments_to_run:
+    continue
+  res_name, sc_name, steps_name, start_name, end_name = names
+  if res_name not in globals():
+    continue
+  record_run(
+      agent,
+      globals()[res_name],
+      globals()[sc_name],
+      globals()[steps_name],
+      globals().get(start_name),
+      globals().get(end_name),
+  )
 
 # OUTPUTTING RESULTS TO A FILE
 

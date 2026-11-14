@@ -25,6 +25,7 @@ from stateact.analysis.alfworld import (
     no_groupby_analyse_data,
 )
 from stateact.analysis.common import clean_model_string
+from stateact.analysis.core import load_episodes, load_summary, summarise
 from stateact.analysis.textcraft import load_results as load_textcraft_results
 from stateact.analysis.webshop import load_scores as load_webshop_scores
 
@@ -32,6 +33,9 @@ __all__ = [
     "alfworld",
     "webshop",
     "textcraft",
+    "load_episodes",
+    "load_summary",
+    "summarise",
     "analyse_data_basic",
     "analyse_data_new",
     "analyse_data_old",

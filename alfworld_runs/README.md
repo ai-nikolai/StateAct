@@ -14,7 +14,7 @@ alfworld-download
 
 3. (**Full version** (to reproduce results)) Running alfworld locally: (tested on A100)
 ```bash
-mkdir game_logs
+mkdir -p results
 keys_to_use='["goal","locations_visited","current_location","current_inventory","thought","action"]'
 python3 alfworld_run.py \
    --agent "ours-text" \
@@ -69,8 +69,8 @@ backend.
 ## More Options:
 5. Running Alfworld with different settings (see in `run_alfworld_eval.sh`). E.g.:
 ```bash
-mkdir game_logs #unless you have the folder already
-./run_alworld_eval.sh test_ours_local
+mkdir -p results #unless you have the folder already
+./run_alfworld_eval.sh test_ours_local
 ```
 
 6. To interact with Alfworld by Manually typing (i.e. as a Human):

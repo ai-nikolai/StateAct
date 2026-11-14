@@ -58,6 +58,19 @@ use `nvidia-smi`/one A100 from the `hx` queue. Both models fit comfortably in
 a single A100 at the default context lengths; reduce `MAX_MODEL_LEN` if the
 queue gives you a smaller GPU.
 
+## Result files
+
+Both jobs use the shared `stateact.results` format:
+
+```text
+<results_folder>/<trial>/summary.csv    # one row per agent/run
+<results_folder>/<trial>/episodes.csv   # one row per environment
+```
+
+ALFWorld defaults to `alfworld_runs/results/<trial>/`; WebShop writes into the
+folder passed as `RESULTS_FOLDER` (default `results/stateact_local/`).
+Benchmark-specific fields are in the `details` JSON column.
+
 ## PBS or SLURM?
 
 This cluster runs PBS, so the checked-in scripts use `#PBS` directives and

@@ -12,6 +12,7 @@ a ``num_envs`` argument (default 135), so smaller runs can be analysed too.
 
 import os
 
+from stateact import results
 from stateact.analysis.common import require_pandas
 
 __all__ = [
@@ -29,16 +30,20 @@ __all__ = [
     "main",
 ]
 
-DEFAULT_BASE_FOLDER = "game_logs"
-DEFAULT_TRIAL_BASE_NAME = "alfworld_eval_"
-DEFAULT_CSV_NAME = "alfworld_results.csv"
+DEFAULT_BASE_FOLDER = "results"
+DEFAULT_TRIAL_BASE_NAME = ""
+DEFAULT_CSV_NAME = "episodes.csv"
 DEFAULT_NUM_ENVS = 135
+
+LEGACY_BASE_FOLDER = "game_logs"
+LEGACY_TRIAL_BASE_NAME = "alfworld_eval_"
+LEGACY_CSV_NAME = "alfworld_results.csv"
 
 
 def get_data_file_path(current_trial_name="v5_eval", base_folder=DEFAULT_BASE_FOLDER,
                        trial_base_name=DEFAULT_TRIAL_BASE_NAME,
                        csv_file_name=DEFAULT_CSV_NAME):
-    """Return the CSV path for a trial (notebook-compatible name)."""
+    """Return the episode CSV for a trial (notebook-compatible name)."""
     return os.path.join(
         base_folder, trial_base_name + current_trial_name, csv_file_name
     )
@@ -66,23 +71,50 @@ def convert_bool_string_to_bool_int(in_string):
 def load_data(trial_name, base_folder=DEFAULT_BASE_FOLDER,
               trial_base_name=DEFAULT_TRIAL_BASE_NAME,
               csv_file_name=DEFAULT_CSV_NAME):
-    """Load ``alfworld_results.csv`` for a trial.
+    """Load episodes for a trial.
 
-    ``trial_name`` may also be a direct path to a CSV.
+    ``trial_name`` may be a trial name or a direct path to an episodes CSV.
+    New runs live in ``<base_folder>/<trial>/episodes.csv``; the legacy
+    ``game_logs/alfworld_eval_<trial>/alfworld_results.csv`` is used as a
+    fallback.
     """
     pd = require_pandas()
-    path = trial_name if str(trial_name).endswith(".csv") else get_data_file_path(
-        trial_name, base_folder, trial_base_name, csv_file_name
-    )
-    return pd.read_csv(
-        path,
-        quoting=1,
-        index_col=False,
-        converters={
-            "early_stop": convert_string_to_bool_int,
-            "error": convert_string_to_bool_int,
-        },
-    )
+
+    if str(trial_name).endswith(".csv") or os.path.isfile(trial_name):
+        rows = results.load_episodes(trial_name, benchmark="alfworld")
+    else:
+        path = get_data_file_path(
+            trial_name, base_folder, trial_base_name, csv_file_name
+        )
+        try:
+            rows = results.load_episodes(path, benchmark="alfworld")
+        except FileNotFoundError:
+            legacy_candidates = [
+                get_data_file_path(
+                    trial_name, base_folder, LEGACY_TRIAL_BASE_NAME,
+                    LEGACY_CSV_NAME,
+                ),
+                get_data_file_path(
+                    trial_name, LEGACY_BASE_FOLDER, LEGACY_TRIAL_BASE_NAME,
+                    LEGACY_CSV_NAME,
+                ),
+            ]
+            legacy = next(
+                (candidate for candidate in legacy_candidates
+                 if os.path.exists(candidate)),
+                legacy_candidates[0],
+            )
+            rows = results.load_episodes(legacy, benchmark="alfworld")
+
+    frame = pd.DataFrame(rows)
+    if "num_of_steps" not in frame.columns and "steps" in frame.columns:
+        frame["num_of_steps"] = frame["steps"]
+    if "total_reward" not in frame.columns and "reward" in frame.columns:
+        frame["total_reward"] = frame["reward"]
+    for column in ("early_stop", "error"):
+        if column in frame.columns:
+            frame[column] = frame[column].map(convert_string_to_bool_int)
+    return frame
 
 
 def _aggregate(input_data, groupby, header_order, num_envs):

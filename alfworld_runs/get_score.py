@@ -3,7 +3,7 @@
 Thin CLI wrapper: the scoring logic lives in ``stateact.scoring`` so the same
 aggregation can be reused by the WebShop / TextCraft analysis notebooks.
 
-Usage (from inside ``alfworld_runs/``, where ``game_logs/`` lives):
+Usage (from inside ``alfworld_runs/``, where ``results/`` lives):
 
     python3 get_score.py --trial_name "baseline_14B"
 

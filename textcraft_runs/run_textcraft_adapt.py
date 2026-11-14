@@ -4,7 +4,6 @@ import sys
 import json
 import re
 from tqdm import tqdm
-from datetime import datetime
 
 from tenacity import (
     retry,
@@ -26,6 +25,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 from stateact.agents import url_chat, url_completion  # noqa: E402
+from stateact.results import RunLogger  # noqa: E402
 
 
 parser = argparse.ArgumentParser()
@@ -1624,10 +1624,22 @@ verbose = True
 
 
 ## Running main loop for evaluation
+_trial = os.path.basename(os.path.normpath(args.results_folder))
+_result_root = os.path.dirname(os.path.normpath(args.results_folder)) or "."
+run_logger = RunLogger(
+    "textcraft",
+    agent=AGENT_TYPE,
+    model=LM,
+    trial=_trial,
+    results_folder=_result_root,
+    num_envs=num_games,
+)
+
 outputs = {}
 pbar = tqdm(list(range(num_games)))
 rs = []; cnts = []
 depths = []
+run_counts = []
 rate = 0.0
 pbar.set_postfix({'success rate': rate})
 env = TextCraft()
@@ -1641,8 +1653,17 @@ for idx in pbar:
     rs.append(r)
     cnts.append(1)
     depths.append(depth)
+    run_counts.append(num_runs)
     rate = sum(rs)/sum(cnts)
     outputs[f'env_{idx}'] = {'problem': task, 'commands': commands, 'trace': trace, 'plans': plans, 'reward': r, 'runs': num_runs}
+    run_logger.log_episode(
+        env_idx=idx,
+        success=r > 0,
+        done=bool(term),
+        reward=r,
+        steps=num_runs,
+        details={"depth": depth, "max_depth": max_depth},
+    )
     pbar.set_postfix({'rate': rate})
 outputs['overall'] = {'rate': sum(rs) / sum(cnts),  'count': cnts, "num_envs":sum(cnts), "depths":depths}
 
@@ -1672,21 +1693,15 @@ dest_file = os.path.join(
 )
 print("===================FILE NAME")
 print(dest_file)
-dest_file_csv = os.path.join(
-    args.results_folder,
-    'results.csv'
+os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+with open(dest_file, 'w+') as handle:
+    json.dump(outputs, handle, indent=4)
+
+run_logger.finish(
+    score=final_rate,
+    success_rate=final_rate,
+    failure_rate=1.0 - final_rate,
+    avg_reward=final_rate,
+    avg_steps=sum(run_counts) / len(run_counts) if run_counts else 0.0,
+    details={"average_depth": average_depth, "max_depth": max_depth},
 )
-os.makedirs('/'.join(dest_file.split('/')[:-1]), exist_ok=True)
-t = open(dest_file, 'w+')
-json.dump(outputs, t, indent=4)
-t.close()
-
-current_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-# Check if file exists and create if not
-if not os.path.exists(dest_file_csv):
-    with open(dest_file_csv, 'w') as f:
-        f.write("agent,date,model,rate,total_count,average_depth,max_depth\n")
-
-with open(dest_file_csv, 'a') as f:
-    f.write(f"{AGENT_TYPE},{current_date},{clean_model_name},{final_rate},{total_count},{average_depth},{max_depth}\n")

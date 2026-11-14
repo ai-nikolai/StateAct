@@ -1,4 +1,3 @@
-import csv
 import os
 import json
 import re
@@ -40,6 +39,7 @@ from stateact.parsing import (  # noqa: E402
 # ALFWorld lives behind one small adapter so the run script does not depend on
 # the alfworld/textworld API directly.
 from stateact.envs.alfworld import AlfworldEnv  # noqa: E402
+from stateact.results import RunLogger  # noqa: E402
 
 # Provider imports and agent construction live in the shared `stateact.llm`
 # module (single optional-import helper + a registry, replacing the six
@@ -86,16 +86,6 @@ available_providers()
 #################################################################
 #Logging Related
 #################################################################
-def write_line_to_main_log_csv(name, data):
-    """Writes one line of output into the main CSV"""
-    with open(name, 'a', newline='') as myfile:
-        wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-        if type(data) == list:
-            wr.writerow(data)
-        elif type(data) == dict:
-            data_list = [x for _,x in data.items()]
-            wr.writerow(data_list)
-
 def get_empty_dict_from_csv_header(header):
     """Generate empty dict from csv header"""
     out_dict = {}
@@ -236,7 +226,9 @@ def build_arg_parser():
     parser.add_argument("--keys_renaming", type=str, help="Needs to be json.loads-able list of new key names.")
 
     # RUN / ENV:
-    parser.add_argument("--trial_name", type=str, default="v3_0_eval_test", help="Underlying Model to use.(Needs to align with agent, otherwise default model will be used.)")
+    parser.add_argument("--trial_name", type=str, default="v3_0_eval_test", help="Name of this run/trial.")
+    parser.add_argument("--results_folder", type=str, default="results",
+                        help="Root for summary.csv / episodes.csv (default: results).")
     parser.add_argument("--start_index", type=int, default=0, help="Starting Index to use (inclusive).")
     parser.add_argument("--end_index", type=int, default=0, help="Ending index to use (inclusive). (Overrides num_envs)")
     parser.add_argument("--num_envs", type=int,  default=1, help="Sets the num of envs to run (gets overriden by end index)")
@@ -290,10 +282,6 @@ if __name__=="__main__":
     ####################################################
     # BASIC CONFIGURATION
     ####################################################
-    BASE_FOLDER = "game_logs"
-    BASE_EVAL_NAME = "alfworld_eval"
-    MAIN_CSV_FILE_NAME = "alfworld_results"
-
     TEST_ENV = False
     # TEST_ENV = True
 
@@ -419,10 +407,7 @@ if __name__=="__main__":
     ####################################################
     # OTHER IN-BUILT CONFIG
     ####################################################
-    CREATE_NEW_LOG_CSV=False
-
-    CURRENT_TRIAL_FOLDER = BASE_EVAL_NAME+"_"+CURRENT_TRIAL_NAME
-    SAVE_FOLDER = os.path.join(BASE_FOLDER,CURRENT_TRIAL_FOLDER)
+    SAVE_FOLDER = os.path.join(args.results_folder, CURRENT_TRIAL_NAME)
     CSV_HEADER = [
         # GENERAL AGENT/ENV Settings
         "env_idx",
@@ -465,27 +450,9 @@ if __name__=="__main__":
 
 
     #######################################################
-    # LOGGING(CSV) Related
+    # LOGGING Related
     #######################################################
-    #CSV FILE Related Things
-    MAIN_CSV_FILEPATH = os.path.join(SAVE_FOLDER,MAIN_CSV_FILE_NAME+".csv")
-
-    # Writing the Header
-    if not os.path.exists(SAVE_FOLDER):
-        os.mkdir(SAVE_FOLDER)
-    if CREATE_NEW_LOG_CSV:
-        file_counter = 0
-        while os.path.exists(MAIN_CSV_FILEPATH):
-            MAIN_CSV_FILEPATH = os.path.join(SAVE_FOLDER,MAIN_CSV_FILE_NAME+str(file_counter)+".csv")
-            file_counter+=1
-        # Now that we have a new unique csv file name create it and write the header.
-        write_line_to_main_log_csv(MAIN_CSV_FILEPATH, CSV_HEADER)
-    else:
-        if not os.path.exists(MAIN_CSV_FILEPATH): #Only write header once
-            write_line_to_main_log_csv(MAIN_CSV_FILEPATH, CSV_HEADER)
-
-
-
+    os.makedirs(SAVE_FOLDER, exist_ok=True)
 
     #######################################################
     # AGENT Related
@@ -510,6 +477,16 @@ if __name__=="__main__":
     )
     
     agent.update_save_path(SAVE_FOLDER)
+
+    run_logger = RunLogger(
+        "alfworld",
+        agent=AGENT_TYPE,
+        model=actual_model,
+        trial=CURRENT_TRIAL_NAME,
+        results_folder=args.results_folder,
+        split=args.eval_split,
+        num_envs=num_envs,
+    )
 
     if RESAMPLE:
         if not agent.is_resample():
@@ -894,10 +871,30 @@ if __name__=="__main__":
             logging_dict["prompt_name"] = prompt_name
             logging_dict["keys_to_use"] = KEYS_TO_USE
 
-            #File Loggin
+            #File Logging
             logging_dict["trace_file"] = agent.file_name
             logging_dict["prompt_file"] = prompt_save_path
             logging_dict["additional_prompt_annotation"] = additional_prompt_annotation
-            write_line_to_main_log_csv(MAIN_CSV_FILEPATH, logging_dict)
+
+            core_fields = {
+                "env_idx", "env_type", "success", "done", "total_reward",
+                "early_stop", "error", "num_of_steps",
+            }
+            run_logger.log_episode(
+                env_idx=logging_dict["env_idx"],
+                env_type=logging_dict["env_type"],
+                success=logging_dict["success"],
+                done=logging_dict["done"],
+                reward=logging_dict["total_reward"],
+                steps=logging_dict["num_of_steps"],
+                error=logging_dict["error"],
+                early_stop=logging_dict["early_stop"],
+                details={
+                    key: value for key, value in logging_dict.items()
+                    if key not in core_fields
+                },
+            )
             print(logging_dict)
             agent.save()
+
+    run_logger.finish()

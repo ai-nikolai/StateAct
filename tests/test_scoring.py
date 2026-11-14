@@ -87,7 +87,7 @@ def test_load_results_stdlib_fallback(tmp_path, monkeypatch):
 
 
 def test_results_path():
-    assert scoring.results_path("demo") == "game_logs/alfworld_eval_demo/alfworld_results.csv"
+    assert scoring.results_path("demo") == "results/demo/episodes.csv"
 
 
 def test_score_trial_reads_real_csv(tmp_path):

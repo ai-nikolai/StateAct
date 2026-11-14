@@ -28,9 +28,7 @@ def alfworld_frame(alfworld_csv):
 
 
 def test_get_data_file_path():
-    assert alfworld.get_data_file_path("demo") == (
-        "game_logs/alfworld_eval_demo/alfworld_results.csv"
-    )
+    assert alfworld.get_data_file_path("demo") == "results/demo/episodes.csv"
 
 
 @pytest.mark.parametrize("value,expected", [("", 0), ("x", 1), ("False", 1)])
