@@ -100,6 +100,21 @@ def test_load_textcraft_legacy_results(tmp_path):
     assert rows[0]["average_depth"] == "1.5"
 
 
+def test_load_run_finds_legacy_alfworld_from_repo_root(tmp_path, monkeypatch):
+    legacy = tmp_path / "alfworld_runs" / "game_logs" / "alfworld_eval_demo"
+    legacy.mkdir(parents=True)
+    (legacy / "alfworld_results.csv").write_text(
+        "env_idx,success,done\n0,True,True\n1,False,True\n"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    rows = results.load_run(
+        "alfworld", "demo", results_folder="alfworld_runs/results"
+    )
+    assert rows[0]["score"] == 0.5
+    assert rows[0]["num_envs"] == 2
+
+
 def test_load_alfworld_legacy_episodes_as_summary(tmp_path):
     path = tmp_path / "alfworld_results.csv"
     path.write_text(

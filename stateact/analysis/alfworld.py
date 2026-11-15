@@ -99,6 +99,12 @@ def load_data(trial_name, base_folder=DEFAULT_BASE_FOLDER,
                     trial_name, LEGACY_BASE_FOLDER, LEGACY_TRIAL_BASE_NAME,
                     LEGACY_CSV_NAME,
                 ),
+                *[
+                    os.path.join(directory, LEGACY_CSV_NAME)
+                    for directory in results.legacy_alfworld_dirs(
+                        trial_name, base_folder
+                    )
+                ],
             ]
             legacy = next(
                 (candidate for candidate in legacy_candidates

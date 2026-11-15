@@ -36,6 +36,7 @@ __all__ = [
     "load_run",
     "load_summary",
     "load_episodes",
+    "legacy_alfworld_dirs",
     "find_runs",
 ]
 
@@ -374,6 +375,21 @@ def load_summary(path, benchmark=None):
     return [_normalise_summary(row, benchmark, trial) for row in _read_csv(resolved)]
 
 
+def legacy_alfworld_dirs(trial, results_folder="results"):
+    """Candidate legacy directories for an ALFWorld trial.
+
+    Handles running from the repository root or from ``alfworld_runs/``.
+    """
+    parent = os.path.dirname(os.path.normpath(results_folder))
+    roots = [
+        "game_logs",
+        os.path.join("alfworld_runs", "game_logs"),
+    ]
+    if parent:
+        roots.insert(0, os.path.join(parent, "game_logs"))
+    return [os.path.join(root, f"alfworld_eval_{trial}") for root in roots]
+
+
 def load_run(benchmark, trial, results_folder="results"):
     """Load summary rows for a benchmark/trial with legacy fallbacks."""
     directory = run_dir(trial, results_folder)
@@ -383,8 +399,11 @@ def load_run(benchmark, trial, results_folder="results"):
         pass
 
     if benchmark == "alfworld":
-        legacy = os.path.join("game_logs", f"alfworld_eval_{trial}")
-        return load_summary(legacy, benchmark=benchmark)
+        for legacy in legacy_alfworld_dirs(trial, results_folder):
+            try:
+                return load_summary(legacy, benchmark=benchmark)
+            except FileNotFoundError:
+                continue
     raise FileNotFoundError(directory)
 
 
