@@ -63,6 +63,8 @@ def test_base_agent_history_and_save(tmp_path):
 
     assert agent.full_history[-1]["content"] == ">hello"
     assert agent.full_history[-1]["old_content"] == "hello"
+    # The conversation sent to the model must see the same prefix update.
+    assert agent.current_prompt[-1]["content"] == ">hello"
     assert agent.pop_from_history()["content"] == ">hello"
 
     agent.add_to_history("world", "assistant")
@@ -169,6 +171,20 @@ def test_url_agent_single_prompt_mode(monkeypatch, tmp_path):
     ])
     assert agent._payload()["messages"] == [
         {"role": "user", "content": "basehello"}
+    ]
+
+
+def test_url_agent_history_messages_strip_logging_fields(tmp_path):
+    agent = agents.URLChatAgent(
+        save_path=str(tmp_path), model="m", url="http://x",
+        prompt_mode="history",
+    )
+    agent.set_base_prompt_and_reset([{"role": "system", "content": "base"}])
+    agent.add_to_history("hello", "user", {"in_token_all": 5})
+
+    assert agent._messages() == [
+        {"role": "system", "content": "base"},
+        {"role": "user", "content": "hello"},
     ]
 
 

@@ -229,12 +229,14 @@ class BaseAgent:
         self.add_to_history(first_obs, "user")
 
     def add_to_history(self, content, role, additional_data=None, *args, **kwargs):
+        # Keep the *same* dict in current_prompt and full_history.  The agent
+        # loop calls update_latest_history(">"+action) to add the prompt
+        # prefix; that must also update the conversation sent to the model.
         entry = {"role": role, "content": content}
         self.current_prompt.append(entry)
 
-        logged = dict(entry)
-        logged.update(additional_data or {})
-        self.full_history.append(self._extend_memory(logged))
+        entry.update(additional_data or {})
+        self.full_history.append(self._extend_memory(entry))
 
     def _extend_memory(self, memory):
         return memory
@@ -426,7 +428,12 @@ class URLAgent(BaseLLMAgent):
     def _messages(self):
         if self.prompt_mode == "single":
             return [{"role": "user", "content": self.generate_text_prompt()}]
-        return self.current_prompt
+        # current_prompt entries also carry logging fields (token counts,
+        # temperature); only role/content belong in the HTTP payload.
+        return [
+            {"role": message["role"], "content": message["content"]}
+            for message in self.current_prompt
+        ]
 
     def _payload(self, prompt_text=None, stop=None, max_tokens=None, mode=None):
         mode = mode or self.mode
