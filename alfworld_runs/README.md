@@ -15,7 +15,7 @@ alfworld-download
 3. (**Full version** (to reproduce results)) Running alfworld locally: (tested on A100)
 ```bash
 mkdir -p results
-keys_to_use='["goal","locations_visited","current_location","current_inventory","thought","action"]'
+keys_to_use='["goal","current_location","current_inventory","locations_visited","thought","action"]'
 python3 alfworld_run.py \
    --agent "ours-text" \
    --llm_type "VLLMChat" \

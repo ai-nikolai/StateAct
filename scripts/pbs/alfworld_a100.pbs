@@ -27,7 +27,7 @@ START_INDEX="${START_INDEX:-0}"
 SEED="${SEED:-42}"
 AGENT="${AGENT:-stateact}"
 TRIAL_NAME="${TRIAL_NAME:-stateact_${AGENT}_$(date +%Y%m%d_%H%M%S)}"
-KEYS_TO_USE='["goal","locations_visited","current_location","current_inventory","thought","action"]'
+KEYS_TO_USE="${KEYS_TO_USE:-[\"goal\",\"current_location\",\"current_inventory\",\"locations_visited\",\"thought\",\"action\"]}"
 
 echo "Job:        ${PBS_JOBID:-local}"
 echo "Repo:       ${REPO_ROOT}"
