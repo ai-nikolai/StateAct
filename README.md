@@ -110,6 +110,18 @@ See [`scripts/README.md`](scripts/README.md) for overrides (`MODEL`,
 ## Results:
 ![Results](images/results.png)
 
+### Reproduction check (ALFWorld)
+
+`Qwen/Qwen2.5-14B-Instruct` + `ours-text`, 134 evaluation environments:
+
+```text
+Overall (mean) Score: 0.776119 with 104 successful envs and a total of 134 envs.
+```
+
+This matches the historical `v8` reference run with the same model and key
+order. See [`alfworld_runs/README.md`](alfworld_runs/README.md) for the exact
+command and result files.
+
 ## Reference:
 A machine-readable citation is in [`CITATION.cff`](CITATION.cff). Please cite StateAct:
 ```bibtex

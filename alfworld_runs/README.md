@@ -4,7 +4,7 @@
 1. Installation of requirements. (Footnote 1)
 <!-- Note the CMAKE line is important for `fast-downward-textworld`. (Footnote 1) -->
 ```bash
-pip3 install -r pip3 install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 2. Downloading Alfworld Data
@@ -37,10 +37,22 @@ python3 alfworld_run.py \
 python3 get_score.py --trial_name "baseline_14B"
 ```
 
-**Expected Result:**
+Results are written to `results/baseline_14B/` as the shared StateAct files:
+
+```text
+summary.csv    # one row per run
+episodes.csv   # one row per environment
 ```
-Overall (mean) Score: 0.805970 with 108 successful envs and a total of 134 envs.
+
+**Expected Result (current pinned versions):**
 ```
+Overall (mean) Score: 0.776119 with 104 successful envs and a total of 134 envs.
+```
+
+This matches the historical `v8` reference run with the same model and key
+order (104/134 on environments 0–133; 105/135 when the extra environment is
+included). An older README quoted `0.805970`; that came from a different
+prompt/config variant, not the command above.
 
 ### API / URL models (no provider SDK)
 
