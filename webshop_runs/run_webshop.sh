@@ -1,73 +1,31 @@
+#!/usr/bin/env bash
+#
+# Run a named WebShop experiment.
+#
+# The experiment table now lives in experiments/webshop.yaml and the runner in
+# stateact/run_config.py; this wrapper keeps the old interface:
+#
+#     bash run_webshop.sh webshop_api
+#     bash run_webshop.sh --list
+#     bash run_webshop.sh webshop_local --dry-run
+#
+# NOTE (upstream quirk, preserved verbatim): the 'webshop_local' entry passes
+# `--socket` with no value, because SOCKET_NAME was only ever assigned inside a
+# commented-out line in the original script. Export SOCKET_NAME and pass
+# --socket explicitly if you actually want the unix-socket path.
 
-if [ $1 == "webshop_local" ]; then
-    # SOCKET_NAME="./tmp/webshop.sock"
-    ACTUAL_MODEL="Qwen/Qwen2.5-3B-Instruct"
-    NUM_ENVS=100
-    QUANTIZATION=0
-    EXPERIMENT_NAME="results/v5_16K"
-    MAX_MODEL_LEN=16000
+set -u
 
-    python3 run_webshop_adapted.py \
-        --llm_type LOCAL \
-        --socket $SOCKET_NAME \
-        --model_local $ACTUAL_MODEL \
-        --start 0 \
-        --num_env $NUM_ENVS \
-        --agent act \
-        --max_model_len $MAX_MODEL_LEN \
-        --quantization $QUANTIZATION \
-        --results_folder $EXPERIMENT_NAME \
-        --seed 42
-fi;
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+if [ "$#" -eq 0 ]; then
+    echo "usage: $(basename "$0") <experiment> [--dry-run]" >&2
+    echo "       $(basename "$0") --list" >&2
+    echo >&2
+    cd "${REPO_ROOT}" || exit 1
+exec python3 "${REPO_ROOT}/stateact/run_config.py" webshop --list
+fi
 
-
-if [ $1 == "webshop_api" ]; then
-    NUM_ENVS=100
-    EXPERIMENT_NAME="results/v6_api_paper"
-
-    python3 run_webshop_adapted.py \
-        --llm_type NORMAL \
-        --start 0 \
-        --num_env $NUM_ENVS \
-        --agent act \
-        --results_folder $EXPERIMENT_NAME \
-        --seed 42
-fi;
-
-
-if [ $1 == "webshop_api_chat" ]; then
-    NUM_ENVS=30
-    EXPERIMENT_NAME="results/v6_api"
-
-    python3 run_webshop_adapted.py \
-        --llm_type CHAT \
-        --start 0 \
-        --num_env $NUM_ENVS \
-        --agent ssa \
-        --results_folder $EXPERIMENT_NAME \
-        --seed 42
-fi;
-
-if [ $1 == "webshop_eval" ]; then
-    NUM_ENVS=100
-    # EXPERIMENT_NAME="results/v6_api_paper"
-    EXPERIMENT_NAME="results/v6_api_paper"
-
-
-    python3 run_webshop_adapted.py \
-        --llm_type NORMAL \
-        --start 0 \
-        --num_env $NUM_ENVS \
-        --agent ssa \
-        --results_folder $EXPERIMENT_NAME \
-        --seed 42
-
-    python3 run_webshop_adapted.py \
-        --llm_type NORMAL \
-        --start 0 \
-        --num_env $NUM_ENVS \
-        --agent stateact-no-state \
-        --results_folder $EXPERIMENT_NAME \
-        --seed 42
-fi;
+cd "${REPO_ROOT}" || exit 1
+exec python3 "${REPO_ROOT}/stateact/run_config.py" webshop "$@"

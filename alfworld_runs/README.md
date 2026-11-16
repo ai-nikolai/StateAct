@@ -4,7 +4,7 @@
 1. Installation of requirements. (Footnote 1)
 <!-- Note the CMAKE line is important for `fast-downward-textworld`. (Footnote 1) -->
 ```bash
-pip3 install -r pip3 install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 2. Downloading Alfworld Data
@@ -14,8 +14,8 @@ alfworld-download
 
 3. (**Full version** (to reproduce results)) Running alfworld locally: (tested on A100)
 ```bash
-mkdir game_logs
-keys_to_use='["goal","locations_visited","current_location","current_inventory","thought","action"]'
+mkdir -p results
+keys_to_use='["goal","current_location","current_inventory","locations_visited","thought","action"]'
 python3 alfworld_run.py \
    --agent "ours-text" \
    --llm_type "VLLMChat" \
@@ -37,18 +37,52 @@ python3 alfworld_run.py \
 python3 get_score.py --trial_name "baseline_14B"
 ```
 
-**Expected Result:**
+Results are written to `results/baseline_14B/` as the shared StateAct files:
+
+```text
+summary.csv    # one row per run
+episodes.csv   # one row per environment
 ```
-Overall (mean) Score: 0.805970 with 108 successful envs and a total of 134 envs.
+
+**Expected Result (current pinned versions):**
 ```
+Overall (mean) Score: 0.776119 with 104 successful envs and a total of 134 envs.
+```
+
+Paper Table 2 reports **0.78** for StateAct + Qwen-14B, so `0.776119` is an
+exact match at the paper's two-decimal precision. This also matches the
+historical `v8` reference run (104/134 on environments 0–133; 105/135 with the
+extra environment). An older README quoted `0.805970`; that came from a
+different prompt/config variant, not the command above.
+
+### API / URL models (no provider SDK)
+
+Any OpenAI-compatible endpoint can be used through the built-in
+`requests` backend:
+
+```bash
+python3 alfworld_run.py \
+    --agent "stateact" \
+    --llm_type "URLChat" \
+    --model "my-model" \
+    --llm_url "https://api.example.com/v1/chat/completions" \
+    --llm_api_key_env "MY_API_KEY" \
+    --trial_name "url_test" \
+    --start_index 0 --num_envs 1 \
+    --keys_to_use '["goal","thought","action"]' \
+    --force_run
+```
+
+Provider aliases such as `OpenAIChatText` and `NvidiaChatText` still work with
+their default endpoint and key variable. `VLLMChat` is the local backend.
 
 ---
 
 ## More Options:
 5. Running Alfworld with different settings (see in `run_alfworld_eval.sh`). E.g.:
 ```bash
-mkdir game_logs #unless you have the folder already
-./run_alworld_eval.sh test_ours_local
+mkdir -p results #unless you have the folder already
+./run_alfworld_eval.sh test_ours_local
 ```
 
 6. To interact with Alfworld by Manually typing (i.e. as a Human):
@@ -63,7 +97,7 @@ python3 alfworld_run.py \
     # --end_index \
 ```
 
-7. In depth analysis happens in the `analysis_alfworld_eval_notebook.ipynb`
+7. In depth analysis is in [`../analysis/alfworld.ipynb`](../analysis/alfworld.ipynb)
 
 
 8. To run `ReAct` baseline:
@@ -95,6 +129,10 @@ Overall (mean) Score: 0.746269 with 100 successful envs and a total of 134 envs.
 
 ---
 ## Footnotes: 
+The pinned versions are the current releases: `alfworld==0.4.2`,
+`textworld==1.7.0`, `fast-downward-textworld==20.6.4`. The text-only
+`AlfredTWEnv` adapter was verified against that combination.
+
 Footnote 1: Before `fast-downward-textworld==20.6.3` (Apr 25) the classical installation breaks the installation (you will need the commented CMAKE Var), like this:
 ```bash
 export CMAKE_POLICY_VERSION_MINIMUM=3.5 

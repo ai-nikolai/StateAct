@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint and compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ruff
+        run: python -m pip install --upgrade pip ruff
+
+      - name: Ruff (shared package and tests)
+        run: ruff check stateact tests
+
+      - name: Byte-compile the benchmark entry points
+        run: >-
+          python -m compileall -q
+          stateact
+          alfworld_runs/alfworld_run.py
+          alfworld_runs/alfworld_ablation_generator.py
+          alfworld_runs/alfworld_react_prompt_utils.py
+          alfworld_runs/get_score.py
+          textcraft_runs/run_textcraft_adapt.py
+          webshop_runs/run_webshop_adapted.py
+          examples
+
+      - name: Check the PBS scripts
+        run: bash -n scripts/submit_pbs.sh scripts/pbs/*.pbs
+
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    # ubuntu-latest (26.04) no longer ships a Python 3.9 build in
+    # actions/setup-python. Keep 3.9 covered on the 22.04 image.
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install the package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run the test suite
+        run: python -m pytest
+
+      - name: Smoke-test the runners
+        run: |
+          python stateact/run_config.py alfworld --list
+          python stateact/run_config.py webshop --list
+          python stateact/run_config.py alfworld test --dry-run
+          python -m stateact.analysis --help > /dev/null
+
+  build:
+    name: Build distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Verify the built wheel imports
+        run: |
+          python -m pip install --force-reinstall dist/*.whl
+          python -c "import stateact, stateact.analysis; print('stateact', stateact.__version__)"

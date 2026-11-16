@@ -3,9 +3,23 @@ import sys
 import argparse
 from datetime import datetime
 
+# Make the repository root importable (this script is run as a plain file).
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from stateact.llms import url_chat, url_completion  # noqa: E402
+from stateact.results import RunLogger  # noqa: E402
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--llm_type", type=str, default="NORMAL", choices=["NORMAL", "CHAT", "TROPIC", "LOCAL"])
+parser.add_argument("--llm_url", type=str, default=None,
+                    help="Override the chat/completions endpoint URL.")
+parser.add_argument("--llm_api_key_env", type=str, default=None,
+                    help="Environment variable holding the API key.")
+parser.add_argument("--llm_api_key", type=str, default=None,
+                    help="API key value (prefer --llm_api_key_env).")
 parser.add_argument("--socket", type=str)
 parser.add_argument("--model_local", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
 parser.add_argument("--start", type=int, default=0)
@@ -48,103 +62,69 @@ MAX_PROMPT_LENGTH=min(args.max_model_len,6400)
 SEED = None if args.seed == -1 else args.seed
 print(f"The used seed: {SEED}")
 
-if LLM_TYPE=="NORMAL":
-  print("RUNNING OPENAI WITH TEXT MODEL")
+# All API models go through the same requests-based helper in
+# stateact.llms; only the default URL, key variable and message layout
+# differ. LOCAL still uses vLLM directly.
+API_KEY_ENV = args.llm_api_key_env
+API_KEY = args.llm_api_key
 
-  import openai
+if LLM_TYPE == "NORMAL":
+  print("RUNNING URL MODEL WITH TEXT/COMPLETIONS")
   MODEL = "gpt-3.5-turbo-instruct"
-  openai.api_key = os.environ["OPENAI_API_KEY"]
-  client = openai.OpenAI()
+  API_URL = args.llm_url or "https://api.openai.com/v1/completions"
+  API_KEY_ENV = API_KEY_ENV or "OPENAI_API_KEY"
+  API_MODE = "completion"
 
+elif LLM_TYPE == "CHAT":
+  print("RUNNING URL MODEL WITH CHAT")
+  MODEL = "gpt-3.5-turbo-1106"
+  API_URL = args.llm_url or "https://api.openai.com/v1/chat/completions"
+  API_KEY_ENV = API_KEY_ENV or "OPENAI_API_KEY"
+  API_MODE = "chat"
 
-elif LLM_TYPE=="CHAT":
-  print("RUNNING OPENAI WITH CHAT MODEL")
+elif LLM_TYPE == "TROPIC":
+  print("RUNNING URL MODEL WITH ANTHROPIC CHAT")
+  MODEL = "claude-3-5-sonnet-latest"
+  API_URL = args.llm_url or "https://api.anthropic.com/v1/chat/completions"
+  API_KEY_ENV = API_KEY_ENV or "ANTHROPIC_API_KEY"
+  API_MODE = "chat"
 
-  import openai
-  # MODEL = "gpt-3.5-turbo-0125" 
-  MODEL = "gpt-3.5-turbo-1106" 
-  openai.api_key = os.environ["OPENAI_API_KEY"]
-  client = openai.OpenAI()
-
-  # GPT_MODEL = "gpt-3.5-turbo-0125"
-  # GPT_MODEL = "gpt-3.5-turbo-1106"
-  # GPT_MODEL = "gpt-4-0613"
-  # GPT_MODEL = "gpt-3.5-turbo"
-  # MAX_PROMPT_LENGTH=128000
-
-
-elif LLM_TYPE=="TROPIC":
-  print("RUNNING ANTHROPIC WITH CHAT MODEL")
-
-  MODEL="claude-3-5-sonnet-latest"
-  import anthropic
-  client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-
-elif LLM_TYPE=="LOCAL":
+elif LLM_TYPE == "LOCAL":
   print("RUNNING LOCAL WITH VLLM Backend")
   from vllm import LLM, SamplingParams
-  MODEL= args.model_local
+  MODEL = args.model_local
 
 print(f"The used model is {MODEL}")
 
+
+def _url_call(prompt, stop, messages=None, headers=None):
+  kwargs = dict(
+    temperature=0,
+    stop=stop,
+    max_tokens=500,
+    api_key=API_KEY,
+    api_key_env=API_KEY_ENV,
+    headers=headers,
+  )
+  if API_MODE == "completion":
+    return url_completion(API_URL, MODEL, prompt, **kwargs)
+  return url_chat(API_URL, MODEL, messages, **kwargs)
+
+
 def llm(prompt, stop=["\n"]):
-    # MODEL = MODEL
-    # response = openai.Completion.create(
-    response = client.completions.create(
-      # model="text-davinci-002",
-      model=MODEL,
-      prompt=prompt,
-      temperature=0,
-      max_tokens=500,
-      top_p=1,
-      frequency_penalty=0.0,
-      presence_penalty=0.0,
-      stop=stop
-    )
-    # return response["choices"][0]["text"]
-    return response.choices[0].text
+  return _url_call(prompt, stop, messages=[{"role": "user", "content": prompt}])
 
 
 def llm_chat(prompt, stop=["\n"]):
-    # MODEL = MODEL
-    # MODEL = "gpt-4-turbo-preview"
-    chat_prompt = [
-            {
-                "role": "system", 
-                "content": prompt
-            }
-        ]
-    response = client.chat.completions.create(
-      model=MODEL,
-      messages=chat_prompt,
-      temperature=0,
-      max_tokens=500,
-      top_p=1,
-      frequency_penalty=0.0,
-      presence_penalty=0.0,
-      stop=stop
-    )
-    # return response["choices"][0]["text"]
-    return response.choices[0].message.content
+  return _url_call(prompt, stop, messages=[{"role": "system", "content": prompt}])
+
 
 def llm_tropic(prompt, stop=["\n"]):
-  chat_prompt = [
-          {
-              "role": "user", 
-              "content": prompt
-          }
-      ]
-  response = client.messages.create(
-    model=MODEL,
-    max_tokens = 500,
-    temperature = 0,
-    top_p=1,
-    # frequency_penalty=0.0,
-    # presence_penalty=0.0,
-    stop_sequences=stop,
-    messages = chat_prompt
+  return _url_call(
+    prompt, stop,
+    messages=[{"role": "user", "content": prompt}],
+    headers={"anthropic-version": "2023-06-01"},
   )
-  return response.content[0].text
 
 def local_llm_closure():
   # Initialize model with HF token authentication
@@ -321,58 +301,54 @@ def webshop_text(session, page_type, query_string='', page_num=1, asin='', optio
     visible_texts = list(filter(tag_visible, texts))
     # visible_texts = [str(text).strip().strip('\\n') for text in visible_texts]
     # if page_type == 'end': import pdb; pdb.set_trace()
-    if False:
-        # For `simple` mode, return just [SEP] separators
-        return ' [SEP] '.join(t.strip() for t in visible_texts if t != '\n')
-    else:
-        # Otherwise, return an observation with tags mapped to specific, unique separators
-        observation = ''
-        option_type = ''
-        options = {}
-        asins = []
-        cnt = 0
-        prod_cnt = 0
-        just_prod = 0
-        for t in visible_texts:
-            if t == '\n': continue
-            if t.replace('\n', '').replace('\\n', '').replace(' ', '') == '': continue
-            # if t.startswith('Instruction:') and page_type != 'init': continue
-            # print(t.parent.name, t)
-            if t.parent.name == 'button':  # button
-                processed_t = f'\n[{t}] '
-            elif t.parent.name == 'label':  # options
-                if f"'{t}'" in url_path:
-                    processed_t = f'[[{t}]]'
-                    # observation = f'You have clicked {t}.\n' + observation
-                else:
-                    processed_t = f'[{t}]'
-                options[str(t)] = option_type
-                # options[option_type] = options.get(option_type, []) + [str(t)]
-            elif t.parent.get('class') == ["product-link"]: # product asins
-                processed_t = f'\n[{t}] '
-                if prod_cnt >= 3:
-                  processed_t = ''
-                prod_cnt += 1
-                asins.append(str(t))
-                just_prod = 0
-            else: # regular, unclickable text
-                processed_t =  '\n' + str(t) + ' '
-                if cnt < 2 and page_type != 'init': processed_t = ''
-                if just_prod <= 2 and prod_cnt >= 4: processed_t = ''
-                option_type = str(t)
-                cnt += 1
-            just_prod += 1
-            observation += processed_t
-        info = {}
-        if options:
-          info['option_types'] = options
-        if asins:
-          info['asins'] = asins
-        if 'Your score (min 0.0, max 1.0)' in visible_texts:
-          idx = visible_texts.index('Your score (min 0.0, max 1.0)')
-          info['reward'] = float(visible_texts[idx + 1])
-          observation = 'Your score (min 0.0, max 1.0): ' + (visible_texts[idx + 1])
-        return clean_str(observation), info
+    # Otherwise, return an observation with tags mapped to specific, unique separators
+    observation = ''
+    option_type = ''
+    options = {}
+    asins = []
+    cnt = 0
+    prod_cnt = 0
+    just_prod = 0
+    for t in visible_texts:
+        if t == '\n': continue
+        if t.replace('\n', '').replace('\\n', '').replace(' ', '') == '': continue
+        # if t.startswith('Instruction:') and page_type != 'init': continue
+        # print(t.parent.name, t)
+        if t.parent.name == 'button':  # button
+            processed_t = f'\n[{t}] '
+        elif t.parent.name == 'label':  # options
+            if f"'{t}'" in url_path:
+                processed_t = f'[[{t}]]'
+                # observation = f'You have clicked {t}.\n' + observation
+            else:
+                processed_t = f'[{t}]'
+            options[str(t)] = option_type
+            # options[option_type] = options.get(option_type, []) + [str(t)]
+        elif t.parent.get('class') == ["product-link"]: # product asins
+            processed_t = f'\n[{t}] '
+            if prod_cnt >= 3:
+              processed_t = ''
+            prod_cnt += 1
+            asins.append(str(t))
+            just_prod = 0
+        else: # regular, unclickable text
+            processed_t =  '\n' + str(t) + ' '
+            if cnt < 2 and page_type != 'init': processed_t = ''
+            if just_prod <= 2 and prod_cnt >= 4: processed_t = ''
+            option_type = str(t)
+            cnt += 1
+        just_prod += 1
+        observation += processed_t
+    info = {}
+    if options:
+      info['option_types'] = options
+    if asins:
+      info['asins'] = asins
+    if 'Your score (min 0.0, max 1.0)' in visible_texts:
+      idx = visible_texts.index('Your score (min 0.0, max 1.0)')
+      info['reward'] = float(visible_texts[idx + 1])
+      observation = 'Your score (min 0.0, max 1.0): ' + (visible_texts[idx + 1])
+    return clean_str(observation), info
 
 class webshopEnv:
   def __init__(self):
@@ -1976,7 +1952,6 @@ if "ta" in experiments_to_run:
   print(sum(steps14)/len(steps14))
 
   
-current_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 FOLDER = args.results_folder
 
 import string
@@ -1996,39 +1971,71 @@ clean_model_name = clean_model_string(MODEL)
 
 os.makedirs(FOLDER, exist_ok=True)
 
-# Check if file exists and create if not
-if not os.path.exists(os.path.join(FOLDER,'scores.csv')):
-    with open(os.path.join(FOLDER,'scores.csv'), 'w') as f:
-        f.write("agent,date,model,avg_score,success_rate,failure_rate\n")
+RESULT_ROOT = os.path.dirname(os.path.normpath(FOLDER)) or "."
+TRIAL_NAME = os.path.basename(os.path.normpath(FOLDER))
 
-try:
-  with open(os.path.join(FOLDER,'scores.csv'), 'a') as f:
-    if "act" in experiments_to_run:
-        f.write(f"act,{current_date},{clean_model_name},{sc0[0]},{sc0[1]},{sc0[2]}\n")
-    if "react" in experiments_to_run:
-        f.write(f"react,{current_date},{clean_model_name},{sc1[0]},{sc1[1]},{sc1[2]}\n")
-    if "stateact" in experiments_to_run:
-        f.write(f"stateact,{current_date},{clean_model_name},{sc6[0]},{sc6[1]},{sc6[2]}\n") 
-    if "stateact-no-thoughts" in experiments_to_run:
-        f.write(f"stateact-no-thoughts,{current_date},{clean_model_name},{sc9[0]},{sc9[1]},{sc9[2]}\n")
-    if "stateact-no-goal" in experiments_to_run:
-        f.write(f"stateact-no-goal,{current_date},{clean_model_name},{sc5[0]},{sc5[1]},{sc5[2]}\n")
-    if "stateact-no-state" in experiments_to_run:
-        f.write(f"stateact-no-state,{current_date},{clean_model_name},{sc11[0]},{sc11[1]},{sc11[2]}\n")
-    if "ssa" in experiments_to_run:
-        f.write(f"ssa,{current_date},{clean_model_name},{sc7[0]},{sc7[1]},{sc7[2]}\n")
-    if "stateact2" in experiments_to_run:
-        f.write(f"stateact2,{current_date},{clean_model_name},{sc13[0]},{sc13[1]},{sc13[2]}\n")
-    if "gsta" in experiments_to_run:
-        f.write(f"gsta,{current_date},{clean_model_name},{sc3[0]},{sc3[1]},{sc3[2]}\n")
 
-    if "sta" in experiments_to_run:
-        f.write(f"sta,{current_date},{clean_model_name},{sc4[0]},{sc4[1]},{sc4[2]}\n")
-    if "ga" in experiments_to_run:
-        f.write(f"ga,{current_date},{clean_model_name},{sc10[0]},{sc10[1]},{sc10[2]}\n")
-except Exception as e:
-  print("=======\nError with writing scores!")
-  print(e)
+def _fmt_time(value):
+  return time.strftime("%Y-%m-%dT%H:%M:%S", value) if value else ""
+
+
+def record_run(agent, rewards, summary, steps, started=None, finished=None):
+  logger = RunLogger(
+      "webshop",
+      agent=agent,
+      model=MODEL,
+      trial=TRIAL_NAME,
+      results_folder=RESULT_ROOT,
+      num_envs=len(rewards),
+      started_at=_fmt_time(started),
+  )
+  for offset, (reward, step_count) in enumerate(zip(rewards, steps)):
+    logger.log_episode(
+        env_idx=s + offset,
+        success=reward >= 1.0,
+        done=True,
+        reward=reward,
+        steps=step_count,
+    )
+  logger.finish(
+      score=summary[0],
+      success_rate=summary[1],
+      failure_rate=summary[2],
+      avg_reward=sum(rewards) / len(rewards) if rewards else 0.0,
+      avg_steps=sum(steps) / len(steps) if steps else 0.0,
+      finished_at=_fmt_time(finished),
+  )
+
+
+WEBSHOP_RUNS = {
+    "act": ("res0", "sc0", "steps0", "t0s", "t0e"),
+    "react": ("res1", "sc1", "steps1", "t1s", "t1e"),
+    "ta": ("res2", "sc2", "steps2", "t2s", "t2e"),
+    "gsta": ("res3", "sc3", "steps3", "t3s", "t3e"),
+    "sta": ("res4", "sc4", "steps4", "t4s", "t4e"),
+    "stateact-no-goal": ("res5", "sc5", "steps5", "t5s", "t5e"),
+    "stateact": ("res6", "sc6", "steps6", "t6s", "t6e"),
+    "ssa": ("res7", "sc7", "steps7", "t7s", "t7e"),
+    "stateact-no-thoughts": ("res9", "sc9", "steps9", "t9s", "t9e"),
+    "ga": ("res10", "sc10", "steps10", "t10s", "t10e"),
+    "stateact-no-state": ("res11", "sc11", "steps11", "t11s", "t11e"),
+    "stateact2": ("res13", "sc13", "steps13", "t13s", "t13e"),
+}
+
+for agent, names in WEBSHOP_RUNS.items():
+  if agent not in experiments_to_run:
+    continue
+  res_name, sc_name, steps_name, start_name, end_name = names
+  if res_name not in globals():
+    continue
+  record_run(
+      agent,
+      globals()[res_name],
+      globals()[sc_name],
+      globals()[steps_name],
+      globals().get(start_name),
+      globals().get(end_name),
+  )
 
 # OUTPUTTING RESULTS TO A FILE
 
@@ -2149,4 +2156,3 @@ file_name = f'webshop_results_{experiments_to_run[0]}_{clean_model_name}_s={s}_N
 
 with open(os.path.join(FOLDER,file_name), 'w') as f:
     f.write(output_str)
-  

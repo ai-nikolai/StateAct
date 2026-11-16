@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stateact"
+version = "2.1.0"
+description = "StateAct agents: ReAct, AgentBench, StateAct, Reflexion and ADaPT for LLM environments"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Proprietary" }
+authors = [{ name = "Nikolai Rozanov" }, { name = "Marek Rei" }]
+
+# The agent library needs requests for OpenAI-compatible endpoints. The
+# environment-specific dependencies are per-benchmark and stay in the
+# requirements.txt files under each *_runs/ directory, because they are
+# mutually incompatible (two different vLLM pins, alfworld vs webshop vs
+# textcraft).
+dependencies = ["requests>=2.32.3"]
+
+[project.optional-dependencies]
+local = ["vllm>=0.6.6", "transformers>=4.48.2"]
+scienceworld = ["scienceworld>=1.2.3"]
+score = ["pandas>=2.2.3"]
+yaml = ["pyyaml>=6.0.2"]
+dev = [
+    "pytest>=8.0",
+    "pandas>=2.2.3",
+    "pyyaml>=6.0.2",
+    "requests>=2.32.3",
+    "ruff>=0.6",
+]
+
+[project.urls]
+Paper = "https://arxiv.org/abs/2410.02810"
+Source = "https://github.com/ai-nikolai/StateAct"
+
+[tool.setuptools.packages.find]
+include = ["stateact*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+# The benchmark folders are large, mostly-legacy scripts with their own style;
+# the refactor and its tests are what CI lints.
+extend-exclude = [
+    "alfworld_runs",
+    "webshop_runs",
+    "textcraft_runs",
+]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
+ignore = ["E501"]

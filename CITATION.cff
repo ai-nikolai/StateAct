@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the StateAct paper."
+title: "StateAct: State Tracking and Reasoning for Acting and Planning with Large Language Models"
+authors:
+  - family-names: Rozanov
+    given-names: Nikolai
+  - family-names: Rei
+    given-names: Marek
+year: 2024
+preferred-citation:
+  type: article
+  title: "StateAct: State Tracking and Reasoning for Acting and Planning with Large Language Models"
+  authors:
+    - family-names: Rozanov
+      given-names: Nikolai
+    - family-names: Rei
+      given-names: Marek
+  year: 2024
+  eprint: 2410.02810
+  archive-prefix: arXiv
+  primary-class: cs.AI
+  url: "https://arxiv.org/abs/2410.02810"
+repository-code: "https://github.com/ai-nikolai/StateAct"

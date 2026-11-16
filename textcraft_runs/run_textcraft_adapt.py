@@ -1,29 +1,29 @@
 import json
 import os
 import sys
-import json
 import re
-from tqdm import tqdm
-from datetime import datetime
-
-from tenacity import (
-    retry,
-    stop_after_attempt, # type: ignore
-    wait_random_exponential, # type: ignore
-    RetryError
-)
 import copy
-import ast
-import numpy as np
-# sys.path.append("../EnvironmentWebs/environments/")
+import argparse
+
+from tqdm import tqdm
 from textcraft import TextCraft
 
-import random #for the seed
-import argparse
+# Make the repository root importable (this script is run as a plain file).
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+from stateact.llms import url_chat, url_completion  # noqa: E402
+from stateact.results import RunLogger  # noqa: E402
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--llm_type", type=str, default="LOCAL", choices=["GPT", "LOCAL"])
+parser.add_argument("--llm_url", type=str, default=None,
+                    help="Override the chat/completions endpoint URL.")
+parser.add_argument("--llm_api_key_env", type=str, default=None,
+                    help="Environment variable holding the API key.")
+parser.add_argument("--llm_api_key", type=str, default=None,
+                    help="API key value (prefer --llm_api_key_env).")
 parser.add_argument("--model_local", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
 parser.add_argument("--num_games", type=int, default=30)
 parser.add_argument("--max_model_len", type=int, default=16000)
@@ -62,14 +62,16 @@ print(f"The used seed: {SEED}")
 
 AGENT_TYPE = args.agent_type
 
-if LLM_TYPE=="GPT":
-    import openai
-    openai.api_key = os.environ["OPENAI_API_KEY"]
+if LLM_TYPE == "GPT":
     LM = 'gpt-3.5-turbo-instruct'
+    API_URL_TEXT = args.llm_url or "https://api.openai.com/v1/completions"
+    API_URL_CHAT = args.llm_url or "https://api.openai.com/v1/chat/completions"
+    API_KEY_ENV = args.llm_api_key_env or "OPENAI_API_KEY"
+    API_KEY = args.llm_api_key
 
-elif LLM_TYPE=="LOCAL":
-    LM=args.model_local
-    MAX_PROMPT_LENGTH=args.max_model_len
+elif LLM_TYPE == "LOCAL":
+    LM = args.model_local
+    MAX_PROMPT_LENGTH = args.max_model_len
 max_runs = 40
 # max_depth = 4
 # num_games = 200 #originally 200
@@ -85,91 +87,36 @@ Here [count] is a place holder for number of object, and [item] is placeholder f
 
 '''
 
-# @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(15))
 def llm(prompt, stop=["\n"], max_tokens=150, plan=False):
+    """Call the configured GPT/URL model (local models use a closure below)."""
     if plan:
-        max_tokens=800
-        stop=['\n\n']
+        max_tokens = 800
+        stop = ['\n\n']
     else:
-        max_tokens=150
-        stop=['\n']
-    if 'davinci' in LM or 'instruct' in LM:
-        if plan:
-            prompt= 'You are an helpful assistant helping me play a simple version of Minecraft. ' + prompt,
-        else:
-            prompt='You are a helpful assistant playing Minecraft\n' + environment_context + prompt,
-        response = openai.Completion.create(
-        model=LM,
-        prompt=prompt,
-        temperature=0,
-        max_tokens=max_tokens,
-        top_p=1,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        stop=stop
-        )
-        return response["choices"][0]["text"]
-    elif 'gpt-3.5-turbo' in LM or 'gpt-4' in LM:
-        if plan:
-            messages=[
-                {"role": "system", "content": 'You are an helpful assistant helping me play a simple version of Minecraft.'},
-                {"role": "user", "content": prompt}
-            ],
-        else:
-            messages=[
-            {"role": "system", "content": 'You are a helpful assistant playing Minecraft.' + environment_context},
-            {"role": "user", "content": prompt}
-            ],
-        response = openai.ChatCompletion.create(
-        model=LM,
-        messages=messages,
-        temperature=0,
-        max_tokens=max_tokens,
-        top_p=1,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        stop=stop
-        )
-        choices = response["choices"]
-        completion_objs = [choice.message for choice in choices]
-        completions = [completion.content for completion in completion_objs]
-        return completions[0]
+        max_tokens = 150
+        stop = ['\n']
 
-# @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(25))
-# def plan_llm(prompt, stop=["\n\n"]):
-#     if 'davinci' in LM or 'turbo-instruct' in LM:
-#       if isinstance(prompt, list): prompt = prompt[0]
-#       response = openai.Completion.create(
-#         model=LM,
-#         prompt= 'You are an helpful assistant helping me play a simple version of Minecraft. ' + prompt,
-#         temperature=0,
-#         max_tokens=800,
-#         top_p=1,
-#         frequency_penalty=0.0,
-#         presence_penalty=0.0,
-#         # stop=stop
-#       )
-#       return response["choices"][0]["text"]
-#     elif 'gpt-3.5-turbo' in LM or 'gpt-4' in LM:
-#       if isinstance(prompt, list): prompt = prompt[0]
-#       init_prmpt = 'You are an helpful assistant helping me play a simple version of Minecraft.'
-#       response = openai.ChatCompletion.create(
-#       model=LM,
-#       messages=[
-#         {"role": "system", "content": init_prmpt},
-#         {"role": "user", "content": prompt}
-#       ],
-#       temperature=0,
-#       max_tokens=800,
-#       top_p=1,
-#       frequency_penalty=0.0,
-#       presence_penalty=0.0,
-#       # stop=stop
-#       )
-#       choices = response["choices"]
-#       completion_objs = [choice.message for choice in choices]
-#       completions = [completion.content for completion in completion_objs]
-#       return completions[0]
+    if 'davinci' in LM or 'instruct' in LM:
+        prefix = ('You are an helpful assistant helping me play a simple version '
+                  'of Minecraft. ' if plan else
+                  'You are a helpful assistant playing Minecraft\n'
+                  + environment_context)
+        return url_completion(
+            API_URL_TEXT, LM, prefix + prompt,
+            temperature=0, max_tokens=max_tokens, stop=stop,
+            api_key=API_KEY, api_key_env=API_KEY_ENV,
+        )
+
+    system = ('You are an helpful assistant helping me play a simple version of '
+              'Minecraft.' if plan else
+              'You are a helpful assistant playing Minecraft.' + environment_context)
+    return url_chat(
+        API_URL_CHAT, LM,
+        [{"role": "system", "content": system},
+         {"role": "user", "content": prompt}],
+        temperature=0, max_tokens=max_tokens, stop=stop,
+        api_key=API_KEY, api_key_env=API_KEY_ENV,
+    )
 
 
 def local_llm_closure():
@@ -352,7 +299,7 @@ def clean_action(action, prompt_type="react"):
             return action
 
 
-def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, output_term=True, prompt_type="react", verbose=False):
+def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, prompt_type="react", verbose=False):
     print(f"\n\n\n=============================\nSTARTING TEXTCRAFT RUN ADAPT:")
     if isinstance(prompt, list): 
         init_prompt = copy.copy(prompt)
@@ -408,7 +355,7 @@ def textcraft_run_adapt(prompt, to_print=True, ob='', env=env, max_runs=40, outp
         observation, reward, done, _,  info = env.step(extracted_action)
         print(f"===\nObservation:\n---\n{observation}")
 
-        print(f"===\Reward & Done:\nreward:{reward}\ndone:{done}")
+        print(f"===\\Reward & Done:\nreward:{reward}\ndone:{done}")
 
 
         if 'task completed' in action.lower(): done = True; success = True
@@ -1664,10 +1611,22 @@ verbose = True
 
 
 ## Running main loop for evaluation
+_trial = os.path.basename(os.path.normpath(args.results_folder))
+_result_root = os.path.dirname(os.path.normpath(args.results_folder)) or "."
+run_logger = RunLogger(
+    "textcraft",
+    agent=AGENT_TYPE,
+    model=LM,
+    trial=_trial,
+    results_folder=_result_root,
+    num_envs=num_games,
+)
+
 outputs = {}
 pbar = tqdm(list(range(num_games)))
 rs = []; cnts = []
 depths = []
+run_counts = []
 rate = 0.0
 pbar.set_postfix({'success rate': rate})
 env = TextCraft()
@@ -1681,8 +1640,17 @@ for idx in pbar:
     rs.append(r)
     cnts.append(1)
     depths.append(depth)
+    run_counts.append(num_runs)
     rate = sum(rs)/sum(cnts)
     outputs[f'env_{idx}'] = {'problem': task, 'commands': commands, 'trace': trace, 'plans': plans, 'reward': r, 'runs': num_runs}
+    run_logger.log_episode(
+        env_idx=idx,
+        success=r > 0,
+        done=bool(term),
+        reward=r,
+        steps=num_runs,
+        details={"depth": depth, "max_depth": max_depth},
+    )
     pbar.set_postfix({'rate': rate})
 outputs['overall'] = {'rate': sum(rs) / sum(cnts),  'count': cnts, "num_envs":sum(cnts), "depths":depths}
 
@@ -1712,21 +1680,15 @@ dest_file = os.path.join(
 )
 print("===================FILE NAME")
 print(dest_file)
-dest_file_csv = os.path.join(
-    args.results_folder,
-    'results.csv'
+os.makedirs(os.path.dirname(dest_file), exist_ok=True)
+with open(dest_file, 'w+') as handle:
+    json.dump(outputs, handle, indent=4)
+
+run_logger.finish(
+    score=final_rate,
+    success_rate=final_rate,
+    failure_rate=1.0 - final_rate,
+    avg_reward=final_rate,
+    avg_steps=sum(run_counts) / len(run_counts) if run_counts else 0.0,
+    details={"average_depth": average_depth, "max_depth": max_depth},
 )
-os.makedirs('/'.join(dest_file.split('/')[:-1]), exist_ok=True)
-t = open(dest_file, 'w+')
-json.dump(outputs, t, indent=4)
-t.close()
-
-current_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-# Check if file exists and create if not
-if not os.path.exists(dest_file_csv):
-    with open(dest_file_csv, 'w') as f:
-        f.write("agent,date,model,rate,total_count,average_depth,max_depth\n")
-
-with open(dest_file_csv, 'a') as f:
-    f.write(f"{AGENT_TYPE},{current_date},{clean_model_name},{final_rate},{total_count},{average_depth},{max_depth}\n")
