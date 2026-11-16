@@ -16,10 +16,10 @@ From the repository root:
 # ALFWorld, Qwen2.5-7B-Instruct, 134 environments
 bash scripts/submit_pbs.sh alfworld
 
-# WebShop, Qwen2.5-3B-Instruct, 100 environments
+# WebShop, Qwen2.5-14B-Instruct, stateact2, 100 environments (paper Table 2)
 bash scripts/submit_pbs.sh webshop
 
-# TextCraft, Qwen2.5-3B-Instruct, stateact, depth 3, 100 games
+# TextCraft, Qwen2.5-14B-Instruct, stateact, depth 1, 100 games (paper Table 2)
 bash scripts/submit_pbs.sh textcraft
 
 # Check the command without submitting
@@ -43,20 +43,30 @@ bash scripts/submit_pbs.sh textcraft \
     -v "MODEL=Qwen/Qwen2.5-32B-Instruct,AGENT=stateact,MAX_DEPTH=3,NUM_GAMES=100"
 ```
 
+For a quick smoke test, use the smaller 3B models:
+
+```bash
+bash scripts/submit_pbs.sh webshop \
+    -v "MODEL=Qwen/Qwen2.5-3B-Instruct,AGENT=stateact,NUM_ENVS=10"
+
+bash scripts/submit_pbs.sh textcraft \
+    -v "MODEL=Qwen/Qwen2.5-3B-Instruct,AGENT=stateact,MAX_DEPTH=1,NUM_GAMES=10"
+```
+
 Use one `-v` flag with a comma-separated list (qsub replaces the list when
 given twice). Other qsub options work as usual, e.g.
 `-l walltime=00:30:00` or `-q hx`.
 
 | Variable | Default | Used by |
 | --- | --- | --- |
-| `MODEL` | ALFWorld: `Qwen/Qwen2.5-7B-Instruct`; WebShop/TextCraft: `Qwen/Qwen2.5-3B-Instruct` | all |
+| `MODEL` | ALFWorld: `Qwen/Qwen2.5-7B-Instruct`; WebShop/TextCraft: `Qwen/Qwen2.5-14B-Instruct` | all |
 | `NUM_ENVS` | ALFWorld: 134; WebShop: 100 | ALFWorld, WebShop |
 | `NUM_GAMES` | 100 | TextCraft |
 | `START_INDEX` | 0 | ALFWorld |
 | `SEED` | 42 | all |
-| `AGENT` | `stateact` | all |
-| `MAX_DEPTH` | 3 | TextCraft |
-| `MAX_MODEL_LEN` | 16000 (ALFWorld/TextCraft), 6400 (WebShop) | all |
+| `AGENT` | `stateact`; WebShop paper config uses `stateact2` | all |
+| `MAX_DEPTH` | 1 (paper normal); use 3 for ADaPT | TextCraft |
+| `MAX_MODEL_LEN` | 16000 | all |
 | `TRIAL_NAME` | timestamped | ALFWorld |
 | `RESULTS_FOLDER` | `results/stateact_local` (WebShop), `results/stateact_repro` (TextCraft) | WebShop, TextCraft |
 | `CONDA_ENV` | `env_alfworld` / `env_webshop` / `env_textcraft` | all |

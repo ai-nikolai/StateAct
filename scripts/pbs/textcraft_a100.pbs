@@ -7,10 +7,8 @@
 
 # TextCraft with a local model on one A100.
 #
-# The default is the reproduction configuration from the paper scripts:
-# stateact planning, max_depth=3, 100 games, seed 42. Override the model with
-# qsub -v, e.g.
-#     bash scripts/submit_pbs.sh textcraft -v "MODEL=Qwen/Qwen2.5-32B-Instruct"
+# Paper Table 2 (normal, no ADaPT): StateAct + Qwen2.5-14B-Instruct = 0.37,
+# max_depth=1, 100 games, seed 42. Use MAX_DEPTH=3 for the ADaPT experiments.
 #
 # Submit from the repository root.
 
@@ -18,10 +16,10 @@ set -u
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-${PBS_O_WORKDIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}}"
-MODEL="${MODEL:-Qwen/Qwen2.5-3B-Instruct}"
+MODEL="${MODEL:-Qwen/Qwen2.5-14B-Instruct}"
 AGENT="${AGENT:-stateact}"
 NUM_GAMES="${NUM_GAMES:-100}"
-MAX_DEPTH="${MAX_DEPTH:-3}"
+MAX_DEPTH="${MAX_DEPTH:-1}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-16000}"
 SEED="${SEED:-42}"
 RESULTS_FOLDER="${RESULTS_FOLDER:-results/stateact_repro}"

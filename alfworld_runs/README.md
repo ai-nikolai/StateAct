@@ -49,10 +49,11 @@ episodes.csv   # one row per environment
 Overall (mean) Score: 0.776119 with 104 successful envs and a total of 134 envs.
 ```
 
-This matches the historical `v8` reference run with the same model and key
-order (104/134 on environments 0–133; 105/135 when the extra environment is
-included). An older README quoted `0.805970`; that came from a different
-prompt/config variant, not the command above.
+Paper Table 2 reports **0.78** for StateAct + Qwen-14B, so `0.776119` is an
+exact match at the paper's two-decimal precision. This also matches the
+historical `v8` reference run (104/134 on environments 0–133; 105/135 with the
+extra environment). An older README quoted `0.805970`; that came from a
+different prompt/config variant, not the command above.
 
 ### API / URL models (no provider SDK)
 

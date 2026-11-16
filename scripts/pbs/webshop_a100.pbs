@@ -22,11 +22,12 @@ set -u
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-${PBS_O_WORKDIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}}"
-MODEL="${MODEL:-Qwen/Qwen2.5-3B-Instruct}"
-MAX_MODEL_LEN="${MAX_MODEL_LEN:-6400}"
+# Paper Table 2: StateAct + Qwen2.5-14B-Instruct = 0.33 success rate.
+MODEL="${MODEL:-Qwen/Qwen2.5-14B-Instruct}"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-16000}"
 NUM_ENVS="${NUM_ENVS:-100}"
 SEED="${SEED:-42}"
-AGENT="${AGENT:-stateact}"
+AGENT="${AGENT:-stateact2}"
 RESULTS_FOLDER="${RESULTS_FOLDER:-results/stateact_local}"
 SOCKET_NAME="webshop_${PBS_JOBID:-$$}.sock"
 SOCKET_PATH="${REPO_ROOT}/webshop_runs/tmp/${SOCKET_NAME}"

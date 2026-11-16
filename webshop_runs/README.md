@@ -36,6 +36,23 @@ python3 run_webshop_adapted.py \
     --agent react
 ```
 
+Paper Table 2 reproduction (StateAct, Qwen-14B):
+
+```bash
+python3 run_webshop_adapted.py \
+    --llm_type LOCAL \
+    --socket ./tmp/webshop.sock \
+    --model_local Qwen/Qwen2.5-14B-Instruct \
+    --agent stateact2 \
+    --start 0 \
+    --num_envs 100 \
+    --max_model_len 16000 \
+    --seed 42 \
+    --results_folder results/paper_repro_14b
+```
+
+Expected: **0.33** success rate (paper Table 2, Qwen-14B).
+
 API / URL models use the same `requests` backend as ALFWorld (no OpenAI or
 Anthropic SDK needed):
 

@@ -119,9 +119,11 @@ See [`scripts/README.md`](scripts/README.md) for overrides (`MODEL`,
 Overall (mean) Score: 0.776119 with 104 successful envs and a total of 134 envs.
 ```
 
-This matches the historical `v8` reference run with the same model and key
-order. See [`alfworld_runs/README.md`](alfworld_runs/README.md) for the exact
-command and result files.
+Paper Table 2 reports **0.78** for StateAct + Qwen-14B, so this is an exact
+match at the paper's precision. It also matches the historical `v8` reference
+run with the same model and key order. See
+[`alfworld_runs/README.md`](alfworld_runs/README.md) for the exact command and
+result files.
 
 ## Reference:
 A machine-readable citation is in [`CITATION.cff`](CITATION.cff). Please cite StateAct:
