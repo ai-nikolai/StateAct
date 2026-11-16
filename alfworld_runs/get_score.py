@@ -25,7 +25,7 @@ from stateact.scoring import main  # noqa: E402
 
 
 if __name__ == "__main__":
-    # results/ and legacy game_logs/ live next to this script, so make the
-    # CLI work from any working directory.
+    # results/ lives next to this script, so make the CLI work from any
+    # working directory.
     os.chdir(_SCRIPT_DIR)
     main()

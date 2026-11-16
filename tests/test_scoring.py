@@ -1,12 +1,22 @@
 """Tests for stateact.scoring."""
 
-import sys
-
 import pytest
 
-from stateact import scoring
+from stateact import results, scoring
 
 pd = pytest.importorskip("pandas")
+
+
+def _make_run(base, trial="demo"):
+    logger = results.RunLogger(
+        "alfworld", agent="stateact", model="m", trial=trial,
+        results_folder=str(base), num_envs=3,
+    )
+    for idx, success in enumerate([True, False, True]):
+        logger.log_episode(
+            env_idx=idx, success=success, done=True, reward=int(success), steps=1
+        )
+    logger.finish()
 
 
 def test_score_dataframe():
@@ -30,7 +40,7 @@ def test_score_dataframe_custom_column():
     assert result["score"] == pytest.approx(0.5)
 
 
-def test_format_score_matches_historical_output():
+def test_format_score():
     result = {"score": 0.8059701492537313, "num_successful": 108, "num_items": 134}
     assert scoring.format_score(result) == (
         "Overall (mean) Score: 0.805970 with 108 successful envs "
@@ -40,11 +50,7 @@ def test_format_score_matches_historical_output():
 
 @pytest.mark.parametrize(
     "rewards,expected_score,expected_successful",
-    [
-        ([1, 0, 0, 1], 0.5, 2),
-        ([1, 1, 1], 1.0, 3),
-        ([], 0.0, 0),
-    ],
+    [([1, 0, 0, 1], 0.5, 2), ([1, 1, 1], 1.0, 3), ([], 0.0, 0)],
 )
 def test_summarise_rewards(rewards, expected_score, expected_successful):
     result = scoring.summarise_rewards(rewards)
@@ -69,45 +75,33 @@ def test_score_rows_without_pandas():
     assert result["num_successful"] == 2
 
 
-def test_load_results_stdlib_fallback(tmp_path, monkeypatch):
-    trial_dir = tmp_path / "game_logs" / "alfworld_eval_demo"
-    trial_dir.mkdir(parents=True)
-    (trial_dir / "alfworld_results.csv").write_text(
-        "success,early_stop\nTrue,\nFalse,\nTrue,ENV_ERROR\n"
-    )
-
-    monkeypatch.setitem(sys.modules, "pandas", None)
-    rows = scoring.load_results(
-        "demo", base_folder=str(tmp_path / "game_logs")
-    )
-    assert isinstance(rows, list)
-    result = scoring.score_dataframe(rows)
-    assert result == {"score": pytest.approx(2 / 3), "num_items": 3,
-                      "num_successful": 2}
-
-
 def test_results_path():
     assert scoring.results_path("demo") == "results/demo/episodes.csv"
 
 
-def test_score_trial_reads_real_csv(tmp_path):
-    trial_dir = tmp_path / "game_logs" / "alfworld_eval_demo"
-    trial_dir.mkdir(parents=True)
-    (trial_dir / "alfworld_results.csv").write_text("success\n1\n0\n1\n")
+def test_load_results_reads_unified_episodes(tmp_path):
+    base = tmp_path / "results"
+    _make_run(base)
+    rows = scoring.load_results("demo", base_folder=str(base))
+    assert isinstance(rows, list)
+    assert len(rows) == 3
+    assert sum(row["success"] for row in rows) == 2
 
-    result = scoring.score_trial("demo", base_folder=str(tmp_path / "game_logs"))
+
+def test_score_trial(tmp_path):
+    base = tmp_path / "results"
+    _make_run(base)
+    result = scoring.score_trial("demo", base_folder=str(base))
     assert result["score"] == pytest.approx(2 / 3)
     assert result["num_items"] == 3
     assert result["num_successful"] == 2
 
 
 def test_main_prints_score(tmp_path, capsys):
-    trial_dir = tmp_path / "game_logs" / "alfworld_eval_demo"
-    trial_dir.mkdir(parents=True)
-    (trial_dir / "alfworld_results.csv").write_text("success\n1\n1\n")
-
+    base = tmp_path / "results"
+    _make_run(base)
     result = scoring.main(
-        ["--trial_name", "demo", "--base_folder", str(tmp_path / "game_logs")]
+        ["--trial_name", "demo", "--base_folder", str(base)]
     )
-    assert result["score"] == pytest.approx(1.0)
-    assert "Overall (mean) Score: 1.000000" in capsys.readouterr().out
+    assert result["score"] == pytest.approx(2 / 3)
+    assert "Overall (mean) Score: 0.666667" in capsys.readouterr().out

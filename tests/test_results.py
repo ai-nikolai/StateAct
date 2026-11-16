@@ -51,7 +51,7 @@ def test_load_episodes_flattens_details(tmp_path):
     )
     logger.finish()
 
-    rows = results.load_episodes(tmp_path / "demo", benchmark="alfworld")
+    rows = results.load_episodes(tmp_path / "demo")
     assert rows[0]["prompt_name"] == "stringstate"
     assert rows[0]["num_repetitions"] == 2
     assert rows[0]["steps"] == 4
@@ -67,7 +67,7 @@ def test_load_summary_new_run(tmp_path):
     logger.log_episode(env_idx=1, success=False, reward=0.0, steps=12)
     logger.finish(score=0.25, success_rate=0.5, failure_rate=0.0)
 
-    rows = results.load_summary(tmp_path / "demo", benchmark="webshop")
+    rows = results.load_summary(tmp_path / "demo")
     assert len(rows) == 1
     assert rows[0]["benchmark"] == "webshop"
     assert rows[0]["score"] == 0.25
@@ -75,54 +75,16 @@ def test_load_summary_new_run(tmp_path):
     assert rows[0]["num_envs"] == 2
 
 
-def test_load_webshop_legacy_scores(tmp_path):
-    path = tmp_path / "scores.csv"
-    path.write_text(
-        "agent,date,model,avg_score,success_rate,failure_rate\n"
-        "act,2026-01-01,m1,0.5,0.4,0.1\n"
+def test_find_runs(tmp_path):
+    logger = results.RunLogger(
+        "alfworld", agent="stateact", model="m", trial="demo",
+        results_folder=str(tmp_path),
     )
-    rows = results.load_summary(path, benchmark="webshop")
-    assert rows[0]["score"] == 0.5
-    assert rows[0]["success_rate"] == 0.4
-    assert rows[0]["failure_rate"] == 0.1
+    logger.log_episode(env_idx=0, success=True, reward=1, steps=1)
+    logger.finish()
 
-
-def test_load_textcraft_legacy_results(tmp_path):
-    path = tmp_path / "results.csv"
-    path.write_text(
-        "agent,date,model,rate,total_count,average_depth,max_depth\n"
-        "react,2026-01-01,m1,0.6,100,1.5,3\n"
-    )
-    rows = results.load_summary(path, benchmark="textcraft")
-    assert rows[0]["score"] == 0.6
-    assert rows[0]["success_rate"] == 0.6
-    assert rows[0]["num_envs"] == 100
-    assert rows[0]["average_depth"] == "1.5"
-
-
-def test_load_run_finds_legacy_alfworld_from_repo_root(tmp_path, monkeypatch):
-    legacy = tmp_path / "alfworld_runs" / "game_logs" / "alfworld_eval_demo"
-    legacy.mkdir(parents=True)
-    (legacy / "alfworld_results.csv").write_text(
-        "env_idx,success,done\n0,True,True\n1,False,True\n"
-    )
-    monkeypatch.chdir(tmp_path)
-
-    rows = results.load_run(
-        "alfworld", "demo", results_folder="alfworld_runs/results"
-    )
-    assert rows[0]["score"] == 0.5
-    assert rows[0]["num_envs"] == 2
-
-
-def test_load_alfworld_legacy_episodes_as_summary(tmp_path):
-    path = tmp_path / "alfworld_results.csv"
-    path.write_text(
-        "env_idx,env_type,success,done,total_reward,num_of_steps,error,early_stop\n"
-        '0,put,True,True,1,5,,\n'
-        '1,clean,False,True,0,7,,\n'
-    )
-    rows = results.load_summary(path, benchmark="alfworld")
-    assert rows[0]["num_envs"] == 2
-    assert rows[0]["score"] == 0.5
-    assert rows[0]["avg_steps"] == 6.0
+    found = results.find_runs(str(tmp_path))
+    assert len(found) == 1
+    trial, directory = found[0]
+    assert trial == "demo"
+    assert directory == str(tmp_path / "demo")

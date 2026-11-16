@@ -20,7 +20,8 @@ that are shared between ALFWorld, WebShop and TextCraft:
 :mod:`stateact.scoring`
     Reading and aggregating run logs.
 :mod:`stateact.analysis`
-    Notebook-compatible helpers for ALFWorld, WebShop and TextCraft results.
+    Loaders and summaries for the unified ``summary.csv`` / ``episodes.csv``
+    format.
 :mod:`stateact.run_config`
     Config-driven runner for the named experiments that used to live in
     ~1000-line ``if [ $1 == "name" ]`` shell scripts.

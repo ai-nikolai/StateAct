@@ -73,9 +73,8 @@ python3 alfworld_run.py \
     --force_run
 ```
 
-The legacy names (`OpenAIChatText`, `NvidiaChatText`, ...) still work as
-aliases with their default endpoint and key variable. `VLLMChat` is the local
-backend.
+Provider aliases such as `OpenAIChatText` and `NvidiaChatText` still work with
+their default endpoint and key variable. `VLLMChat` is the local backend.
 
 ---
 

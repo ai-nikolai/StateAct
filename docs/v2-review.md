@@ -8,29 +8,29 @@ decisions behind it. It is meant to be updated as follow-up work lands.
 - `llamp` and every provider SDK were removed from the shared code.
   `stateact/agents.py` now has exactly three backends: local vLLM, one
   `requests`-based URL backend for OpenAI-compatible endpoints, and Manual.
-- The legacy `--llm_type` names remain as aliases, so existing experiment
-  tables and command lines keep working.
-- `stateact/analysis/` was added with notebook-compatible ALFWorld helpers and
-  small WebShop/TextCraft loaders.
-- `stateact.scoring` keeps a stdlib CSV fallback, so `get_score.py` works in
-  `env_alfworld` (which does not install pandas).
+- Provider aliases such as `OpenAIChatText` remain available for the
+  experiment tables and command lines.
+- `stateact.analysis` loads the unified result format for all three
+  benchmarks; the old per-benchmark analysis modules were removed.
+- `stateact.scoring` reads the unified episodes file with the standard
+  library, so `get_score.py` works in `env_alfworld` (no pandas).
 - The agent history now shares its entry between `current_prompt` and
   `full_history`, so `update_latest_history('>'+action)` updates what the model
   sees. This restored the historical ALFWorld score.
 - All benchmarks now write the same `summary.csv` + `episodes.csv` under
   `<results_folder>/<trial>/` via `stateact.results.RunLogger`. Common columns
   are identical; benchmark-specific values live in a `details` JSON column.
-  The loaders also understand the historical ALFWorld/WebShop/TextCraft files.
 - `scripts/pbs/` holds A100 jobs for ALFWorld, WebShop and TextCraft, with
   `scripts/submit_pbs.sh` as the submission helper.
 - The benchmark notebooks now live under top-level `analysis/` and use
-  `stateact.analysis`; the original paper notebooks are in `analysis/legacy/`.
+  `stateact.analysis`; the old notebooks were removed (available on the old
+  branch).
 - The ALFWorld dependency is isolated in `stateact/envs/alfworld.py`
   (reset/step/skip). `base_config.yaml` only contains the keys `AlfredTWEnv`
   reads, and the benchmark is pinned to `alfworld==0.4.2`,
   `textworld==1.7.0`, `fast-downward-textworld==20.6.4` (verified).
 - CI now covers agents (mocked HTTP, fake vLLM), analysis and the experiment
-  tables: 183 tests, no network/GPU/API key.
+  tables: 163 tests, no network/GPU/API key.
 - Reproduction check: `Qwen/Qwen2.5-14B-Instruct` + `ours-text` scored
   **0.776119 (104/134)** on ALFWorld, matching the historical `v8` run
   exactly. This also uncovered and fixed a history-prefix regression in
@@ -142,7 +142,7 @@ the character-based fallback is used for logging only. The resampling path
 - `pytest` on Python 3.9-3.12
 - a wheel/sdist build and import check
 
-The 183 tests cover parsing, prompt dispatch, the experiment tables, scoring,
+The 163 tests cover parsing, prompt dispatch, the experiment tables, scoring,
 the URL/HTTP agent (mocked), the vLLM agent (fake modules), the analysis
 helpers and the model registry. None of them need ALFWorld, vLLM, an API key
 or a GPU.

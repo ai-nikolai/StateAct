@@ -1,7 +1,7 @@
 # Analysis
 
 One place for the ALFWorld, WebShop and TextCraft analyses. All notebooks use
-[`stateact.analysis`](../stateact/analysis) and the shared result format:
+[`stateact.analysis`](../stateact/analysis) and the same result format:
 
 ```text
 <results_folder>/<trial>/
@@ -9,33 +9,29 @@ One place for the ALFWorld, WebShop and TextCraft analyses. All notebooks use
   episodes.csv   # one row per environment
 ```
 
-The loaders also read the historical files (`alfworld_results.csv`, WebShop
-`scores.csv`, TextCraft `results.csv`), so old runs still work.
-
 ## Notebooks
 
-- [`alfworld.ipynb`](alfworld.ipynb) — episode table, per-prompt summary, env-type pivot.
+- [`alfworld.ipynb`](alfworld.ipynb) — episode table, env-type success, run summary.
 - [`webshop.ipynb`](webshop.ipynb) — run summary and best agent per model.
-- [`textcraft.ipynb`](textcraft.ipynb) — aggregated success rate and depth.
-
-The original paper notebooks are preserved in [`legacy/`](legacy/).
+- [`textcraft.ipynb`](textcraft.ipynb) — run summary.
 
 ## CLI
 
 ```bash
-python -m stateact.analysis alfworld --trial-name <trial> --base-folder alfworld_runs/results
-python -m stateact.analysis webshop  webshop_runs/results/stateact_local --best
-python -m stateact.analysis textcraft textcraft_runs/results/stateact_repro
+python -m stateact.analysis alfworld --trial-name paper_repro_14b_fixed
+python -m stateact.analysis webshop  webshop_runs/results/paper_repro_14b --best
+python -m stateact.analysis textcraft textcraft_runs/results/paper_repro_14b
 ```
 
 ## Python
 
 ```python
 from stateact.analysis import load_summary, load_episodes, summarise
-from stateact.analysis import alfworld
 
 episodes = load_episodes("alfworld_runs/results/paper_repro_14b_fixed")
-runs = summarise("webshop_runs/results/stateact_local")
-summary = alfworld.summarise_trial("paper_repro_14b_fixed",
-                                   base_folder="alfworld_runs/results")
+runs = load_summary("webshop_runs/results/paper_repro_14b")
+summary = summarise("textcraft_runs/results/paper_repro_14b")
 ```
+
+There is no legacy format loader: all current benchmark scripts write the
+files above. Historical v1/v2 outputs remain available on the old branch.
