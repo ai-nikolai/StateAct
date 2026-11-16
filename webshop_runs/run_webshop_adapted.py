@@ -1992,7 +1992,7 @@ def record_run(agent, rewards, summary, steps, started=None, finished=None):
   for offset, (reward, step_count) in enumerate(zip(rewards, steps)):
     logger.log_episode(
         env_idx=s + offset,
-        success=reward > 0,
+        success=reward >= 1.0,
         done=True,
         reward=reward,
         steps=step_count,
