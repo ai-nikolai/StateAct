@@ -49,6 +49,7 @@ def test_public_agent_library_api():
     assert stateact.AdaptAgent
     assert stateact.BaseEnv
     assert stateact.AlfworldEnv
+    assert stateact.ScienceWorldEnv
     assert stateact.TextcraftEnv
     assert stateact.WebshopEnv
     assert stateact.LLM

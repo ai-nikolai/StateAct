@@ -4,6 +4,9 @@ __all__ = ["main_loop"]
 
 
 def _success(env, total_reward):
+    explicit = getattr(env, "success", None)
+    if explicit is not None:
+        return bool(explicit)
     info = getattr(env, "info", None) or {}
     if isinstance(info, dict):
         won = info.get("won", info.get("success"))

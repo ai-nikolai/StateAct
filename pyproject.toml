@@ -20,6 +20,7 @@ dependencies = ["requests>=2.32.3"]
 
 [project.optional-dependencies]
 local = ["vllm>=0.6.6", "transformers>=4.48.2"]
+scienceworld = ["scienceworld>=1.2.3"]
 score = ["pandas>=2.2.3"]
 yaml = ["pyyaml>=6.0.2"]
 dev = [

@@ -10,6 +10,7 @@ on three benchmarks:
 - **ALFWorld** — household text environments
 - **WebShop** — simulated online shopping
 - **TextCraft** — text-based crafting
+- **ScienceWorld** — interactive science experiments (optional wrapper)
 
 The current `v2` layout keeps the benchmark environments separate but shares
 the agent, result format, analysis and cluster tooling.
@@ -22,6 +23,8 @@ Agent library (includes `requests`):
 
 ```bash
 pip install stateact
+# optional ScienceWorld wrapper:
+pip install "stateact[scienceworld]"
 
 # from a checkout, with development tools:
 pip install -e ".[dev]"
@@ -50,7 +53,9 @@ runners.
 ```python
 from stateact import (
     LLM, ReActAgent, AgentBenchAgent, StateActAgent,
-    ReflexionAgent, AdaptAgent, BaseEnv, AlfworldEnv, main_loop,
+    ReflexionAgent, AdaptAgent,
+    BaseEnv, AlfworldEnv, TextcraftEnv, ScienceWorldEnv, WebshopEnv,
+    main_loop,
 )
 
 llm = LLM(
@@ -100,13 +105,18 @@ env.reward   # float
 env.info     # dict
 ```
 
-Wrappers: `AlfworldEnv`, `TextcraftEnv`, and `WebshopEnv` (adapts a WebShop
-server client).
+Wrappers: `AlfworldEnv`, `TextcraftEnv`, `ScienceWorldEnv`, and `WebshopEnv`
+(adapts a WebShop server client).
 
 ### Main loop
 
 ```python
-from stateact import main_loop
+from stateact import ScienceWorldEnv, main_loop
+
+# ScienceWorld (optional; needs
+#   pip install "stateact[scienceworld]")
+sci = ScienceWorldEnv("boil", variation=0, simplification="easy")
+main_loop(agent, sci, num_runs=1)
 
 # fresh agent each episode
 main_loop(agent, env, num_runs=5, preserve_context=False)
@@ -344,7 +354,7 @@ stateact/
   agents.py       # ReAct, AgentBench, StateAct (string/JSON), Reflexion, ADaPT
   llms.py         # OpenAI-compatible LLM client (requests)
   backends.py     # benchmark model backends (local vLLM, URL, Manual)
-  envs/           # BaseEnv + ALFWorld/WebShop/TextCraft wrappers
+  envs/           # BaseEnv + ALFWorld/TextCraft/ScienceWorld/WebShop wrappers
   main_loop.py    # run an agent on an environment
   parsing.py      # action extraction / observation normalisation
   results.py      # unified summary.csv / episodes.csv + RunLogger

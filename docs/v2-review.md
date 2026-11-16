@@ -10,7 +10,7 @@ decisions behind it. It is meant to be updated as follow-up work lands.
   `requests`-based URL backend for OpenAI-compatible endpoints, and Manual.
 - The standalone library exports `LLM`, `BaseAgent`, `ReActAgent`,
   `AgentBenchAgent`, `StateActAgent` (string/JSON), `ReflexionAgent`,
-  `AdaptAgent`, `BaseEnv`, `AlfworldEnv`, `TextcraftEnv` and `main_loop`.
+  `AdaptAgent`, `BaseEnv`, `AlfworldEnv`, `TextcraftEnv`, `ScienceWorldEnv` and `main_loop`.
 - ALFWorld prompt builders and the benchmark model registry now live in
   `alfworld_runs/`; the library itself has no benchmark prompt content.
 - Provider aliases such as `OpenAIChatText` remain available for the

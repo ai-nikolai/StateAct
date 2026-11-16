@@ -54,6 +54,7 @@ from stateact.agents import (  # noqa: E402
 from stateact.envs import (  # noqa: E402
     AlfworldEnv,
     BaseEnv,
+    ScienceWorldEnv,
     TextcraftEnv,
     WebshopEnv,
 )
@@ -72,6 +73,7 @@ __all__ = [
     "AdaptAgent",
     "BaseEnv",
     "AlfworldEnv",
+    "ScienceWorldEnv",
     "TextcraftEnv",
     "WebshopEnv",
     "main_loop",
