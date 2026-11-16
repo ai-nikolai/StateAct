@@ -31,9 +31,11 @@ decisions behind it. It is meant to be updated as follow-up work lands.
   `textworld==1.7.0`, `fast-downward-textworld==20.6.4` (verified).
 - CI now covers agents (mocked HTTP, fake vLLM), analysis and the experiment
   tables: 163 tests, no network/GPU/API key.
-- Reproduction check: `Qwen/Qwen2.5-14B-Instruct` + `ours-text` scored
-  **0.776119 (104/134)** on ALFWorld, matching the historical `v8` run
-  exactly. This also uncovered and fixed a history-prefix regression in
+- Reproduction check with Qwen2.5-14B-Instruct:
+  - ALFWorld (seed 42): **0.776119** (104/134), paper **0.78**.
+  - WebShop (no seed): **0.34** (34/100), paper **0.33**.
+  - TextCraft (no seed, depth 1): **0.36** (36/100), paper **0.37**.
+  This also uncovered and fixed a history-prefix regression in
   `stateact.agents` (`update_latest_history` must update the model context).
 
 ## What v2 already does well

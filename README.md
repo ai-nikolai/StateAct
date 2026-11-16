@@ -46,16 +46,16 @@ Paper settings: StateAct, Qwen2.5-14B-Instruct, greedy decoding.
 | --- | --- | --- | --- | --- |
 | ALFWorld | **0.78** | **0.776119** (104/134) | — | `--seed 42` |
 | WebShop | **0.33** | 0.29 (29/100) | **0.34** (34/100) | `--seed -1` |
-| TextCraft | **0.37** | 0.41 (41/100) | running | `--seed -1` |
+| TextCraft | **0.37** | 0.41 (41/100) | **0.36** (36/100) | `--seed -1` |
 
 Notes:
 
 - ALFWorld matches the paper at two-decimal precision (0.78).
-- WebShop no-seed is within one environment of the paper (34 vs 33).
+- WebShop no-seed and TextCraft no-seed are each within one environment of the
+  paper (34 vs 33 and 36 vs 37).
 - vLLM is not bit-deterministic at temperature 0; a single run can move by a
   few environments. The no-seed setting matches the original paper scripts.
-- TextCraft seed-42 was 4 environments above the paper; the no-seed rerun is
-  in progress and will be filled in when it finishes.
+- Seed-42 runs are shown for comparison and are not the paper setting.
 
 Full ALFWorld log:
 
