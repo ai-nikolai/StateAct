@@ -47,11 +47,12 @@ python3 run_webshop_adapted.py \
     --start 0 \
     --num_envs 100 \
     --max_model_len 16000 \
-    --seed 42 \
+    --seed -1 \
     --results_folder results/paper_repro_14b
 ```
 
 Expected: **0.33** success rate (paper Table 2, Qwen-14B).
+The no-seed reproduction measured **0.34** (34/100); seed 42 gave 0.29.
 
 API / URL models use the same `requests` backend as ALFWorld (no OpenAI or
 Anthropic SDK needed):

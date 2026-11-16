@@ -63,7 +63,7 @@ given twice). Other qsub options work as usual, e.g.
 | `NUM_ENVS` | ALFWorld: 134; WebShop: 100 | ALFWorld, WebShop |
 | `NUM_GAMES` | 100 | TextCraft |
 | `START_INDEX` | 0 | ALFWorld |
-| `SEED` | 42 | all |
+| `SEED` | ALFWorld: 42; WebShop/TextCraft: -1 (paper/greedy) | all |
 | `AGENT` | `stateact`; WebShop paper config uses `stateact2` | all |
 | `MAX_DEPTH` | 1 (paper normal); use 3 for ADaPT | TextCraft |
 | `MAX_MODEL_LEN` | 16000 | all |

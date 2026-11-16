@@ -21,7 +21,8 @@ AGENT="${AGENT:-stateact}"
 NUM_GAMES="${NUM_GAMES:-100}"
 MAX_DEPTH="${MAX_DEPTH:-1}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-16000}"
-SEED="${SEED:-42}"
+# Paper uses greedy decoding; the historical TextCraft run did not pass a seed.
+SEED="${SEED:--1}"
 RESULTS_FOLDER="${RESULTS_FOLDER:-results/stateact_repro}"
 
 echo "Job:        ${PBS_JOBID:-local}"

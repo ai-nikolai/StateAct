@@ -42,11 +42,20 @@ The core package itself has no runtime dependencies. Local models need
 
 Paper settings: StateAct, Qwen2.5-14B-Instruct, greedy decoding.
 
-| Benchmark | Paper | Reproduced | Notes |
-| --- | --- | --- | --- |
-| ALFWorld | **0.78** | **0.776119** (104/134) | exact at paper precision |
-| WebShop | **0.33** | see `scripts/pbs/webshop_a100.pbs` | `stateact2`, 100 envs |
-| TextCraft | **0.37** | see `scripts/pbs/textcraft_a100.pbs` | `stateact`, depth 1, 100 games |
+| Benchmark | Paper | Seed 42 | No seed | Exact setting |
+| --- | --- | --- | --- | --- |
+| ALFWorld | **0.78** | **0.776119** (104/134) | — | `--seed 42` |
+| WebShop | **0.33** | 0.29 (29/100) | **0.34** (34/100) | `--seed -1` |
+| TextCraft | **0.37** | 0.41 (41/100) | running | `--seed -1` |
+
+Notes:
+
+- ALFWorld matches the paper at two-decimal precision (0.78).
+- WebShop no-seed is within one environment of the paper (34 vs 33).
+- vLLM is not bit-deterministic at temperature 0; a single run can move by a
+  few environments. The no-seed setting matches the original paper scripts.
+- TextCraft seed-42 was 4 environments above the paper; the no-seed rerun is
+  in progress and will be filled in when it finishes.
 
 Full ALFWorld log:
 

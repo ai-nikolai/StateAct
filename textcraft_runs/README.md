@@ -21,11 +21,12 @@ python3 run_textcraft_adapt.py \
     --num_games 100 \
     --max_depth 1 \
     --max_model_len 16000 \
-    --seed 42 \
+    --seed -1 \
     --results_folder results/paper_repro_14b
 ```
 
-Expected: **0.37** success rate (paper Table 2, Qwen-14B). Use `--max_depth 3`
+Expected: **0.37** success rate (paper Table 2, Qwen-14B). The seed-42 run
+measured 0.41 (41/100); the no-seed rerun is in progress. Use `--max_depth 3`
 for the ADaPT test-time-scaling experiments.
 
 For an API / URL model (no OpenAI SDK needed):
