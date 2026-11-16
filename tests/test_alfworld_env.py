@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-from stateact.envs import AlfworldEnv
+from stateact.envs import AlfworldAdapter, AlfworldEnv
 from stateact.envs.alfworld import load_config
 
 CONFIG = {
@@ -52,7 +52,7 @@ def test_load_config(tmp_path):
 
 
 def test_reset_returns_text_and_env_type():
-    env = AlfworldEnv(config=CONFIG, split="eval_out_of_distribution",
+    env = AlfworldAdapter(config=CONFIG, split="eval_out_of_distribution",
                       env_factory=fake_factory)
     observation, env_type = env.reset()
 
@@ -64,7 +64,7 @@ def test_reset_returns_text_and_env_type():
 
 
 def test_step_delegates_single_action():
-    env = AlfworldEnv(config=CONFIG, env_factory=fake_factory)
+    env = AlfworldAdapter(config=CONFIG, env_factory=fake_factory)
     observation, reward, done, info = env.step("look")
 
     assert observation == "You see a chair.\n"
@@ -75,7 +75,7 @@ def test_step_delegates_single_action():
 
 
 def test_skip_resets_repeatedly():
-    env = AlfworldEnv(config=CONFIG, env_factory=fake_factory)
+    env = AlfworldAdapter(config=CONFIG, env_factory=fake_factory)
     env.skip(3)
     assert env.env.reset_count == 3
 
@@ -83,10 +83,35 @@ def test_skip_resets_repeatedly():
 def test_adapter_does_not_import_alfworld():
     # In CI alfworld is not installed at all, so importing this module and
     # constructing an adapter with a fake factory must not touch it.
-    AlfworldEnv(config=CONFIG, env_factory=fake_factory)
+    AlfworldAdapter(config=CONFIG, env_factory=fake_factory)
     assert "alfworld" not in sys.modules
 
 
 def test_missing_config_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
-        AlfworldEnv(config_path=tmp_path / "missing.yaml", env_factory=fake_factory)
+        AlfworldAdapter(config_path=tmp_path / "missing.yaml", env_factory=fake_factory)
+
+
+class FakeAdapter:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    def reset(self):
+        return "You see a table.\n", "put"
+
+    def step(self, action):
+        return "You see a chair.\n", 1.0, False, {"won": [False]}
+
+
+def test_base_env_wrapper():
+    env = AlfworldEnv("ood_test", adapter_factory=FakeAdapter)
+    observation = env.reset()
+    assert observation == "You see a table.\n"
+    assert env.info["env_type"] == "put"
+    assert env.done is False
+
+    observation = env.step("look")
+    assert observation == "You see a chair.\n"
+    assert env.reward == 1.0
+    assert env.done is False
+    assert env.info == {"won": [False]}

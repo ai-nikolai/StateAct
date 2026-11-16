@@ -4,23 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stateact"
-version = "2.0.0"
-description = "State tracking and reasoning for acting and planning with large language models"
+version = "2.1.0"
+description = "StateAct agents: ReAct, AgentBench, StateAct, Reflexion and ADaPT for LLM environments"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "Proprietary" }
 authors = [{ name = "Nikolai Rozanov" }, { name = "Marek Rei" }]
 
-# The core package (parsing, scoring) only needs the standard library.
-# The environment-specific dependencies are per-benchmark and stay in the
+# The agent library needs requests for OpenAI-compatible endpoints. The
+# environment-specific dependencies are per-benchmark and stay in the
 # requirements.txt files under each *_runs/ directory, because they are
 # mutually incompatible (two different vLLM pins, alfworld vs webshop vs
 # textcraft).
-dependencies = []
+dependencies = ["requests>=2.32.3"]
 
 [project.optional-dependencies]
-# The core package has no runtime dependencies.
-url = ["requests>=2.32.3"]
 local = ["vllm>=0.6.6", "transformers>=4.48.2"]
 score = ["pandas>=2.2.3"]
 yaml = ["pyyaml>=6.0.2"]

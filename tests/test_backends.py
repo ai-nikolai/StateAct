@@ -1,4 +1,4 @@
-"""Tests for stateact.agents.
+"""Tests for stateact.backends.
 
 Everything is mocked: no network, no GPU, no provider SDK.
 """
@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from stateact import agents
+from stateact import backends as agents
 
 
 class FakeResponse:

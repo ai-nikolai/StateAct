@@ -17,7 +17,7 @@ lint:
 	bash -n scripts/submit_pbs.sh scripts/pbs/*.pbs
 
 compile:
-	$(PYTHON) -m compileall -q stateact alfworld_runs webshop_runs textcraft_runs
+	$(PYTHON) -m compileall -q stateact alfworld_runs webshop_runs textcraft_runs examples
 
 build:
 	$(PYTHON) -m build

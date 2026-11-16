@@ -11,12 +11,22 @@ API usage here means:
 The adapter targets ALFWorld 0.4.x with TextWorld 1.6+ / 1.7.x.
 """
 
+import os
+
+from stateact.envs.base import BaseEnv
 from stateact.parsing import get_env_type
 
-__all__ = ["load_config", "AlfworldEnv"]
+__all__ = ["load_config", "AlfworldAdapter", "AlfworldEnv"]
 
 DEFAULT_CONFIG = "base_config.yaml"
 DEFAULT_SPLIT = "eval_out_of_distribution"
+
+SPLIT_ALIASES = {
+    "ood_test": "eval_out_of_distribution",
+    "id_test": "eval_in_distribution",
+    "eval_ood": "eval_out_of_distribution",
+    "eval_id": "eval_in_distribution",
+}
 
 
 def load_config(path=DEFAULT_CONFIG):
@@ -27,7 +37,7 @@ def load_config(path=DEFAULT_CONFIG):
         return yaml.safe_load(handle)
 
 
-class AlfworldEnv:
+class AlfworldAdapter:
     """Thin ``reset``/``step`` wrapper around ``alfworld``'s Gym environment.
 
     Parameters
@@ -87,3 +97,48 @@ class AlfworldEnv:
         """Reset ``count`` episodes (the ``--start_index`` behaviour)."""
         for _ in range(count):
             self.reset()
+
+
+class AlfworldEnv(BaseEnv):
+    """StateAct ``BaseEnv`` wrapper for ALFWorld.
+
+    Example::
+
+        env = AlfworldEnv("ood_test")
+        observation = env.reset()
+        while not env.done:
+            observation = env.step("look")
+    """
+
+    def __init__(self, split=DEFAULT_SPLIT, config_path=None,
+                 batch_size=1, adapter_factory=None, **kwargs):
+        super().__init__()
+        self.split = SPLIT_ALIASES.get(split, split)
+        config_path = config_path or os.environ.get("STATEACT_ALFWORLD_CONFIG")
+        if not config_path:
+            repo_config = os.path.join(
+                os.path.dirname(__file__), "..", "..", "..",
+                "alfworld_runs", "base_config.yaml",
+            )
+            config_path = (
+                DEFAULT_CONFIG if os.path.exists(DEFAULT_CONFIG) else repo_config
+            )
+        factory = adapter_factory or AlfworldAdapter
+        self._env = factory(
+            config_path=config_path, split=self.split, batch_size=batch_size,
+            **kwargs,
+        )
+
+    def reset(self):
+        observation, env_type = self._env.reset()
+        self.reward = 0.0
+        self.done = False
+        self.info = {"env_type": env_type}
+        return observation
+
+    def step(self, action):
+        observation, reward, done, info = self._env.step(action)
+        self.reward = float(reward)
+        self.done = bool(done)
+        self.info = info
+        return observation

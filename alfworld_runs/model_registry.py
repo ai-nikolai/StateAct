@@ -14,7 +14,7 @@ change the default URL, API-key environment variable and prompt layout.
 
 import importlib.util
 
-from stateact import agents
+from stateact import backends as agents
 
 __all__ = [
     "AGENT_MODEL_MAPPING",

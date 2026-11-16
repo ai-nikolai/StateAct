@@ -13,7 +13,7 @@ The few-shot *content* stays exactly where it was: the modules under
 What this module removes is the duplication around them: one registry
 (:data:`BASE_EXAMPLE_MODULES`) replaces six hard-coded imports and three
 near-identical dicts, and the builders are resolved lazily so that
-``import stateact.prompts`` works without the ``alfworld_runs`` directory on
+``import prompt_builders`` works when ``alfworld_runs`` is on
 ``sys.path``.
 """
 

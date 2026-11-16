@@ -1,9 +1,18 @@
-"""Optional environment adapters.
+"""Environment interface and benchmark wrappers.
 
-The core package has no benchmark dependencies. Importing a module here does
-*not* import the benchmark; the heavy import happens inside the constructor.
+Importing this module does not import ALFWorld, TextCraft or WebShop; the
+heavy benchmark import happens inside each wrapper's constructor.
 """
 
-from stateact.envs.alfworld import AlfworldEnv
+from stateact.envs.alfworld import AlfworldAdapter, AlfworldEnv
+from stateact.envs.base import BaseEnv
+from stateact.envs.textcraft import TextcraftEnv
+from stateact.envs.webshop import WebshopEnv
 
-__all__ = ["AlfworldEnv"]
+__all__ = [
+    "BaseEnv",
+    "AlfworldAdapter",
+    "AlfworldEnv",
+    "TextcraftEnv",
+    "WebshopEnv",
+]

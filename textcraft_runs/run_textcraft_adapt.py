@@ -12,7 +12,7 @@ from textcraft import TextCraft
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
-from stateact.agents import url_chat, url_completion  # noqa: E402
+from stateact.llms import url_chat, url_completion  # noqa: E402
 from stateact.results import RunLogger  # noqa: E402
 
 

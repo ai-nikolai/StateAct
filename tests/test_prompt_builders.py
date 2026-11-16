@@ -1,8 +1,8 @@
-"""Unit tests for stateact.prompts."""
+"""Unit tests for alfworld_runs/prompt_builders.py."""
 
 import pytest
 
-from stateact import prompts
+import prompt_builders as prompts
 
 
 @pytest.mark.parametrize(

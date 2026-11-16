@@ -9,12 +9,17 @@ that are shared between ALFWorld, WebShop and TextCraft:
     Extraction of an action from a raw LLM response, plus observation
     normalisation.  Standard library only.
 :mod:`stateact.agents`
-    The agent implementations: local vLLM, one ``requests``-based URL backend
-    for OpenAI-compatible endpoints, and a manual agent. No provider SDKs.
-:mod:`stateact.llm`
-    Maps ``--llm_type`` names to those agents and resolves the model.
-:mod:`stateact.prompts`
-    Few-shot prompt assembly and the ``--agent`` -> prompt-builder dispatch.
+    Reasoning agents: ReAct, AgentBench, StateAct (string/JSON), Reflexion
+    and ADaPT.
+:mod:`stateact.backends`
+    Low-level model backends used by the benchmark runners: local vLLM, the
+    ``requests`` URL backend, and Manual. No provider SDKs.
+:mod:`stateact.llms`
+    The standalone OpenAI-compatible ``LLM`` client used by the agents.
+:mod:`stateact.envs`
+    ``BaseEnv`` plus ALFWorld, WebShop and TextCraft wrappers.
+:mod:`stateact.main_loop`
+    Run an agent on an environment for one or more episodes.
 :mod:`stateact.results`
     The unified ``summary.csv`` / ``episodes.csv`` format and ``RunLogger``.
 :mod:`stateact.scoring`
@@ -36,9 +41,41 @@ is not automatically on ``sys.path``.  Every entry point therefore calls
 :func:`add_repo_root_to_path` before importing anything from this package.
 """
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
-__all__ = ["add_repo_root_to_path", "__version__"]
+from stateact.agents import (  # noqa: E402
+    AdaptAgent,
+    AgentBenchAgent,
+    BaseAgent,
+    ReActAgent,
+    ReflexionAgent,
+    StateActAgent,
+)
+from stateact.envs import (  # noqa: E402
+    AlfworldEnv,
+    BaseEnv,
+    TextcraftEnv,
+    WebshopEnv,
+)
+from stateact.llms import LLM  # noqa: E402
+from stateact.main_loop import main_loop  # noqa: E402
+
+__all__ = [
+    "add_repo_root_to_path",
+    "__version__",
+    "LLM",
+    "BaseAgent",
+    "ReActAgent",
+    "AgentBenchAgent",
+    "StateActAgent",
+    "ReflexionAgent",
+    "AdaptAgent",
+    "BaseEnv",
+    "AlfworldEnv",
+    "TextcraftEnv",
+    "WebshopEnv",
+    "main_loop",
+]
 
 
 def add_repo_root_to_path():

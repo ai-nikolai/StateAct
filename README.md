@@ -18,9 +18,12 @@ the agent, result format, analysis and cluster tooling.
 
 ## Install
 
-Core package and development tools:
+Agent library (includes `requests`):
 
 ```bash
+pip install stateact
+
+# from a checkout, with development tools:
 pip install -e ".[dev]"
 ```
 
@@ -33,8 +36,106 @@ pip install -r webshop_runs/requirements.txt     # env_webshop
 pip install -r textcraft_runs/requirements.txt   # env_textcraft
 ```
 
-The core package itself has no runtime dependencies. Local models need
-`vllm` + `transformers`; URL models only need `requests`.
+The agent library only needs `requests`. Benchmark scripts that use an
+in-process local model additionally need `vllm` + `transformers`; those stay
+in the per-benchmark requirements files.
+
+---
+
+## Standalone agent library
+
+`stateact` is also a small agent library that is independent of the benchmark
+runners.
+
+```python
+from stateact import (
+    LLM, ReActAgent, AgentBenchAgent, StateActAgent,
+    ReflexionAgent, AdaptAgent, BaseEnv, AlfworldEnv, main_loop,
+)
+
+llm = LLM(
+    "Qwen/Qwen2.5-14B-Instruct",
+    url="http://localhost:8000/v1",   # local vLLM server or remote API
+    api_key_env="OPENAI_API_KEY",     # omit for a local server
+)
+
+agent = StateActAgent(
+    llm=llm,
+    example_trajectories="",          # string or list of dicts
+    format="string",                  # "string" or "json"
+    prompt_order=["goal", "thought", "action"],
+)
+
+env = AlfworldEnv("ood_test")         # BaseEnv wrapper
+results = main_loop(agent, env, num_runs=1, preserve_context=False)
+```
+
+### Agents
+
+| Agent | Response format |
+| --- | --- |
+| `ReActAgent` | `think: ...` / `action: ...` (auto `OK.` turn) |
+| `AgentBenchAgent` | `THOUGHT: ...` / `ACTION: ...` |
+| `StateActAgent(format="string")` | key/value lines, e.g. `goal: ...` |
+| `StateActAgent(format="json")` | one JSON object with the same keys |
+| `ReflexionAgent(base_agent)` | base agent + reflections after failures |
+| `AdaptAgent(base_agent)` | base agent + plan/decompose retry (ADaPT-style) |
+
+Every agent implements:
+
+```python
+action, state = agent.run_step(observation)
+agent.reset()
+```
+
+### Environments
+
+`BaseEnv` defines:
+
+```python
+observation = env.reset()
+observation = env.step(action)
+env.done     # bool
+env.reward   # float
+env.info     # dict
+```
+
+Wrappers: `AlfworldEnv`, `TextcraftEnv`, and `WebshopEnv` (adapts a WebShop
+server client).
+
+### Main loop
+
+```python
+from stateact import main_loop
+
+# fresh agent each episode
+main_loop(agent, env, num_runs=5, preserve_context=False)
+
+# keep agent memory/reflections (Reflexion style)
+main_loop(agent, env, num_runs=5, preserve_context=True)
+```
+
+### Model providers
+
+Only OpenAI-compatible HTTP endpoints are supported by the library:
+
+```bash
+# local vLLM server
+python -m vllm.entrypoints.openai.api_server \
+  --model Qwen/Qwen2.5-14B-Instruct --port 8000
+```
+
+```python
+llm = LLM("Qwen/Qwen2.5-14B-Instruct", url="http://localhost:8000/v1")
+```
+
+Remote APIs use the same interface; pass `api_key_env` or
+`STATEACT_LLM_API_KEY`. Environment variables supported by
+`LLM.from_env(...)` are `STATEACT_LLM_URL`, `STATEACT_LLM_API_KEY`,
+`STATEACT_LLM_API_KEY_ENV` and `STATEACT_LLM_MODE`.
+
+The benchmark scripts still have the older in-process `VLLMChat` backend for
+exact paper reproduction; that is separate from the library's `LLM` client.
 
 ---
 
@@ -240,21 +341,23 @@ runs = summarise("webshop_runs/results/paper_repro_14b")
 
 ```text
 stateact/
-  agents.py       # local vLLM + one requests-based URL backend + manual
-  llm.py          # --llm_type registry
+  agents.py       # ReAct, AgentBench, StateAct (string/JSON), Reflexion, ADaPT
+  llms.py         # OpenAI-compatible LLM client (requests)
+  backends.py     # benchmark model backends (local vLLM, URL, Manual)
+  envs/           # BaseEnv + ALFWorld/WebShop/TextCraft wrappers
+  main_loop.py    # run an agent on an environment
   parsing.py      # action extraction / observation normalisation
-  prompts.py      # few-shot prompt assembly
-  envs/           # ALFWorld environment adapter
   results.py      # unified summary.csv / episodes.csv + RunLogger
   scoring.py      # score one run
   analysis/       # loaders for the unified format
   run_config.py   # runs experiments/*.yaml
 
-experiments/      # named ALFWorld/WebShop experiment tables
-alfworld_runs/    # ALFWorld entry point + prompt artefacts
+alfworld_runs/    # ALFWorld entry point, prompts, model_registry, adapter
 webshop_runs/     # WebShop entry point
 textcraft_runs/   # TextCraft entry point
+experiments/      # named ALFWorld/WebShop experiment tables
 analysis/         # unified analysis notebooks
+examples/         # standalone library examples
 scripts/          # PBS jobs (ALFWorld, WebShop, TextCraft)
 tests/            # unit tests (no benchmark install required)
 ```

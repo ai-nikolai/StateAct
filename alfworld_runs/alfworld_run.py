@@ -34,14 +34,14 @@ from stateact.parsing import (  # noqa: E402
 
 # ALFWorld lives behind one small adapter so the run script does not depend on
 # the alfworld/textworld API directly.
-from stateact.envs.alfworld import AlfworldEnv  # noqa: E402
+from stateact.envs.alfworld import AlfworldAdapter  # noqa: E402
 from stateact.results import RunLogger  # noqa: E402
 
-# Provider imports and agent construction live in the shared `stateact.llm`
+# Provider imports and agent construction live in the shared `model_registry`
 # module (single optional-import helper + a registry, replacing the six
 # repetitive try/except blocks and the ~170 line if/elif chain that used to
 # be here). `available_providers()` prints the same availability summary.
-from stateact.llm import (  # noqa: E402
+from model_registry import (  # noqa: E402
     available_providers,
     get_agent_and_model,
 )
@@ -49,7 +49,7 @@ from stateact.llm import (  # noqa: E402
 # Prompt format constants, few-shot assembly and the --agent dispatch
 # (generate_prompt_from_example / save_prompt_file / get_prompt_example ...
 # moved out of this file in the v2 refactor).
-from stateact.prompts import (  # noqa: E402
+from prompt_builders import (  # noqa: E402
     generate_prompt_from_example,
     get_prompt_example,
     save_prompt_file,
@@ -68,7 +68,7 @@ available_providers()
 # NOTE (v2 refactor): the prompt format strings (BASE_PROMPT1, TASK_MESSAGE,
 # OPENING_MARK/CLOSING_MARK, HINTS, INSTRUCTIONS), generate_prompt_from_example,
 # save_prompt_file and the prompt-name/example dispatch now live in
-# `stateact.prompts` (imported at the top of this file). The few-shot example
+# `prompt_builders` (imported at the top of this file). The few-shot example
 # content itself is unchanged and still lives in prompts/.
 
 #################################################################
@@ -143,7 +143,7 @@ def get_settings_string(react_prompt, agentbench_prompt, json_react_prompt, agen
 #################################################################
 #Env Prompt Logic
 #################################################################
-# NOTE (v2 refactor): get_prompt_example now lives in `stateact.prompts`,
+# NOTE (v2 refactor): get_prompt_example now lives in `prompt_builders`,
 # together with the naming logic and the base-example registry that replaced
 # the three near-identical ENV_TO_EXAMPLE_MAPPING_* tables.
 
@@ -505,7 +505,7 @@ if __name__=="__main__":
     #######################################################
     # ENV Related
     #######################################################
-    env = AlfworldEnv("base_config.yaml", split=args.eval_split, batch_size=1)
+    env = AlfworldAdapter("base_config.yaml", split=args.eval_split, batch_size=1)
     env.skip(start_env_idx)
 
 
@@ -683,7 +683,7 @@ if __name__=="__main__":
                     action = our_text_action_cleaning(action) #Done
 
                     # "stateact" and "act" are the same text format as
-                    # "ours-text" (see stateact.prompts.AGENT_TYPES); omitting
+                    # "ours-text" (see alfworld_runs.prompt_builders.AGENT_TYPES); omitting
                     # them left actual_action unbound for those --agent values.
                     if (AGENT_TYPE in ("ours-text", "stateact", "act")
                             and llm_type.lower() != "manual"):

@@ -9,10 +9,10 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 # The six per-task base-example modules are described by a single registry in
-# stateact.prompts, replacing the six explicit imports and the three
+# alfworld_runs.prompt_builders, replacing the six explicit imports and the three
 # hand-written ENV_TO_EXAMPLE_MAPPING_* tables that used to be here. The
 # prompt *content* is untouched - only the wiring is generated.
-from stateact.prompts import BASE_EXAMPLE_MODULES, load_base_example_variants
+from prompt_builders import BASE_EXAMPLE_MODULES, load_base_example_variants
 
 
 _BASE_EXAMPLE_VARIANTS = {

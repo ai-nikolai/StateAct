@@ -23,20 +23,33 @@ def test_add_repo_root_to_path():
 
 
 def test_public_modules_import_without_benchmark_dependencies():
-    import stateact.agents
+    import stateact.backends
     import stateact.analysis
     import stateact.envs
-    import stateact.llm
     import stateact.parsing
-    import stateact.prompts
     import stateact.run_config
     import stateact.scoring
 
     assert stateact.parsing.__name__ == "stateact.parsing"
-    assert stateact.agents.__name__ == "stateact.agents"
+    assert stateact.backends.__name__ == "stateact.backends"
     assert stateact.analysis.__name__ == "stateact.analysis"
     assert stateact.envs.__name__ == "stateact.envs"
-    assert stateact.llm.__name__ == "stateact.llm"
-    assert stateact.prompts.__name__ == "stateact.prompts"
     assert stateact.run_config.__name__ == "stateact.run_config"
     assert stateact.scoring.__name__ == "stateact.scoring"
+
+
+def test_public_agent_library_api():
+    import stateact
+
+    assert stateact.BaseAgent
+    assert stateact.ReActAgent
+    assert stateact.AgentBenchAgent
+    assert stateact.StateActAgent
+    assert stateact.ReflexionAgent
+    assert stateact.AdaptAgent
+    assert stateact.BaseEnv
+    assert stateact.AlfworldEnv
+    assert stateact.TextcraftEnv
+    assert stateact.WebshopEnv
+    assert stateact.LLM
+    assert stateact.main_loop

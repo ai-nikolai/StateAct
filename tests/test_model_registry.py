@@ -1,8 +1,9 @@
-"""Tests for the model registry in stateact.llm."""
+"""Tests for alfworld_runs/model_registry.py."""
 
 import pytest
 
-from stateact import agents, llm
+from stateact import backends as agents
+import model_registry as llm
 
 
 def test_provider_registry_is_internally_consistent():

@@ -3,7 +3,7 @@ import os
 
 # Resolve the prompt files relative to this module, not the process cwd.  The
 # scripts are documented to be run from inside alfworld_runs/, but the shared
-# stateact.prompts dispatcher and the test-suite import this module from the
+# alfworld_runs.prompt_builders dispatcher and the test-suite import this module from the
 # repository root as well.
 BASE_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts")
 

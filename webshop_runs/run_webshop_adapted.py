@@ -8,7 +8,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from stateact.agents import url_chat, url_completion  # noqa: E402
+from stateact.llms import url_chat, url_completion  # noqa: E402
 from stateact.results import RunLogger  # noqa: E402
 
 
@@ -63,7 +63,7 @@ SEED = None if args.seed == -1 else args.seed
 print(f"The used seed: {SEED}")
 
 # All API models go through the same requests-based helper in
-# stateact.agents; only the default URL, key variable and message layout
+# stateact.llms; only the default URL, key variable and message layout
 # differ. LOCAL still uses vLLM directly.
 API_KEY_ENV = args.llm_api_key_env
 API_KEY = args.llm_api_key

@@ -6,10 +6,15 @@ decisions behind it. It is meant to be updated as follow-up work lands.
 ## Follow-up work landed in this branch
 
 - `llamp` and every provider SDK were removed from the shared code.
-  `stateact/agents.py` now has exactly three backends: local vLLM, one
+  `stateact/backends.py` has the benchmark backends: local vLLM, one
   `requests`-based URL backend for OpenAI-compatible endpoints, and Manual.
+- The standalone library exports `LLM`, `BaseAgent`, `ReActAgent`,
+  `AgentBenchAgent`, `StateActAgent` (string/JSON), `ReflexionAgent`,
+  `AdaptAgent`, `BaseEnv`, `AlfworldEnv`, `TextcraftEnv` and `main_loop`.
+- ALFWorld prompt builders and the benchmark model registry now live in
+  `alfworld_runs/`; the library itself has no benchmark prompt content.
 - Provider aliases such as `OpenAIChatText` remain available for the
-  experiment tables and command lines.
+  benchmark experiment tables and command lines.
 - `stateact.analysis` loads the unified result format for all three
   benchmarks; the old per-benchmark analysis modules were removed.
 - `stateact.scoring` reads the unified episodes file with the standard
@@ -30,18 +35,19 @@ decisions behind it. It is meant to be updated as follow-up work lands.
   reads, and the benchmark is pinned to `alfworld==0.4.2`,
   `textworld==1.7.0`, `fast-downward-textworld==20.6.4` (verified).
 - CI now covers agents (mocked HTTP, fake vLLM), analysis and the experiment
-  tables: 163 tests, no network/GPU/API key.
+  tables: 182 tests, no network/GPU/API key.
 - Reproduction check with Qwen2.5-14B-Instruct:
   - ALFWorld (seed 42): **0.776119** (104/134), paper **0.78**.
   - WebShop (no seed): **0.34** (34/100), paper **0.33**.
   - TextCraft (no seed, depth 1): **0.36** (36/100), paper **0.37**.
   This also uncovered and fixed a history-prefix regression in
-  `stateact.agents` (`update_latest_history` must update the model context).
+  `stateact.backends` (`update_latest_history` must update the model context).
 
 ## What v2 already does well
 
-- `stateact/parsing.py`, `stateact/prompts.py`, `stateact/scoring.py` and
-  `stateact/run_config.py` are importable without ALFWorld, vLLM or an API key.
+- `stateact/agents.py`, `stateact/llms.py`, `stateact/envs/base.py`,
+  `stateact/parsing.py`, `stateact/scoring.py` and `stateact/run_config.py` are
+  importable without ALFWorld, vLLM or an API key.
 - The named-experiment shell registries were replaced by `experiments/*.yaml`
   plus a single runner. The argv recorded in the YAML was extracted from the
   old scripts, so the interfaces of `run_alfworld_eval.sh` / `run_webshop.sh`
@@ -75,7 +81,7 @@ decisions behind it. It is meant to be updated as follow-up work lands.
    when the scripts were launched from inside `alfworld_runs/`. The path is
    now resolved relative to the module, so tests and tooling can import the
    prompt builders from the repository root.
-7. **Mutable default arguments** in `stateact.prompts.get_prompt_example`
+7. **Mutable default arguments** in `alfworld_runs/prompt_builders.py`
    (`keys_to_use=[]`, `key_renaming={}`) were replaced with `None` defaults.
 8. **Two recorded experiments were already broken upstream.** ALFWorld
    `eval_mix` contained `--trial_namen`, and WebShop `webshop_local` passed
@@ -144,7 +150,7 @@ the character-based fallback is used for logging only. The resampling path
 - `pytest` on Python 3.9-3.12
 - a wheel/sdist build and import check
 
-The 163 tests cover parsing, prompt dispatch, the experiment tables, scoring,
+The 182 tests cover parsing, prompt dispatch, the experiment tables, scoring,
 the URL/HTTP agent (mocked), the vLLM agent (fake modules), the analysis
 helpers and the model registry. None of them need ALFWorld, vLLM, an API key
 or a GPU.
