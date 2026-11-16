@@ -200,3 +200,53 @@ def test_main_loop_preserve_context():
     env = FakeEnv()
     main_loop(agent, env, num_runs=1, preserve_context=True)
     assert agent.reset_count == 0
+
+
+@pytest.mark.parametrize(
+    "agent_cls,response_template",
+    [
+        (agents.ReActAgent, "action: {action}"),
+        (agents.AgentBenchAgent, "ACTION: {action}"),
+        (agents.StateActAgent, "goal: g\naction: {action}"),
+    ],
+)
+@pytest.mark.parametrize(
+    "keep_n,should_have,should_not_have",
+    [
+        (-1, ("obs-one", "obs-two", "obs-three"), ()),
+        (0, ("obs-three",), ("obs-one", "obs-two")),
+        (1, ("obs-two", "obs-three"), ("obs-one",)),
+    ],
+)
+def test_keep_n_context(agent_cls, response_template, keep_n,
+                        should_have, should_not_have):
+    llm = FakeLLM([
+        response_template.format(action="a1"),
+        response_template.format(action="a2"),
+        response_template.format(action="a3"),
+    ])
+    agent = agent_cls(
+        llm=llm,
+        example_trajectories="EXAMPLE_TRAJECTORY",
+        keep_n_context=keep_n,
+    )
+
+    agent.run_step("obs-one")
+    agent.run_step("obs-two")
+    agent.run_step("obs-three")
+
+    prompt = llm.prompts[2]
+    assert "EXAMPLE_TRAJECTORY" in prompt
+    for text in should_have:
+        assert text in prompt
+    for text in should_not_have:
+        assert text not in prompt
+
+
+def test_default_keep_all_context():
+    llm = FakeLLM(["action: a1", "action: a2"])
+    agent = agents.ReActAgent(llm=llm, example_trajectories="EX")
+    agent.run_step("obs-one")
+    agent.run_step("obs-two")
+    assert "obs-one" in llm.prompts[1]
+    assert "EX" in llm.prompts[1]

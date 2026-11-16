@@ -93,6 +93,21 @@ action, state = agent.run_step(observation)
 agent.reset()
 ```
 
+### Context window
+
+All agents (StateAct, ReAct, AgentBench) support `keep_n_context`:
+
+```python
+StateActAgent(llm=llm, keep_n_context=-1)  # keep everything (default)
+StateActAgent(llm=llm, keep_n_context=0)   # only the current observation
+StateActAgent(llm=llm, keep_n_context=1)   # last observation/response pair
+StateActAgent(llm=llm, keep_n_context=3)   # last 3 interaction pairs
+```
+
+The original system prompt, format instructions and few-shot
+`example_trajectories` are **always kept**. Only the interaction history is
+truncated.
+
 ### Environments
 
 `BaseEnv` defines:

@@ -11,6 +11,10 @@ any OpenAI-compatible endpoint.
 Benchmark-specific prompt examples are passed in as
 ``example_trajectories``; the agents themselves contain no ALFWorld,
 WebShop or TextCraft logic.
+
+``keep_n_context`` controls interaction-history truncation: ``-1`` keeps all,
+``0`` keeps only the current observation, and ``n`` keeps the last ``n``
+observation/response pairs. The original prompt and examples are always kept.
 """
 
 import json
@@ -41,7 +45,7 @@ class BaseAgent:
 
     def __init__(self, llm, example_trajectories="", prompt_order=None,
                  system_prompt="", format_instructions="", stop=None,
-                 max_turns=3, verbose=False):
+                 max_turns=3, verbose=False, keep_n_context=-1):
         self.llm = llm
         self.example_trajectories = example_trajectories or ""
         self.prompt_order = list(prompt_order or self.default_prompt_order)
@@ -50,6 +54,7 @@ class BaseAgent:
         self.stop = self.default_stop if stop is None else stop
         self.max_turns = max_turns
         self.verbose = verbose
+        self.keep_n_context = keep_n_context
         self.history = []
         self.state = {}
 
@@ -75,7 +80,35 @@ class BaseAgent:
             return examples
         return "\n\n".join(self.format_state(example) for example in examples)
 
-    def build_prompt(self):
+    def _context_start(self, history):
+        """Index where the visible interaction context starts.
+
+        ``keep_n_context=-1`` keeps everything. ``0`` keeps no previous
+        interaction, ``1`` keeps the last observation/response pair, etc.
+        The original prompt/examples are always added separately.
+        """
+        if self.keep_n_context is None or self.keep_n_context < 0:
+            return 0
+        if self.keep_n_context == 0:
+            return len(history)
+        user_indices = [
+            index for index, entry in enumerate(history)
+            if entry["role"] == "user"
+        ]
+        if len(user_indices) <= self.keep_n_context:
+            return 0
+        return user_indices[-self.keep_n_context]
+
+    def _visible_history(self, current_step_start=0):
+        if current_step_start:
+            previous = self.history[:current_step_start]
+            return (
+                previous[self._context_start(previous):]
+                + self.history[current_step_start:]
+            )
+        return self.history[self._context_start(self.history):]
+
+    def build_prompt(self, current_step_start=0):
         parts = []
         if self.system_prompt:
             parts.append(self.system_prompt)
@@ -86,7 +119,7 @@ class BaseAgent:
             parts.append(self.format_instructions)
 
         parts.append("Interaction:")
-        for entry in self.history:
+        for entry in self._visible_history(current_step_start):
             if entry["role"] == "user":
                 parts.append(f"Observation: {entry['content']}")
             else:
@@ -116,9 +149,10 @@ class BaseAgent:
         self.state = {}
 
     def run_step(self, observation):
+        current_step_start = len(self.history)
         self.history.append({"role": "user", "content": observation})
         for _ in range(self.max_turns):
-            prompt = self.build_prompt()
+            prompt = self.build_prompt(current_step_start=current_step_start)
             response = self._call_llm(prompt)
             if self.verbose:
                 print(response)

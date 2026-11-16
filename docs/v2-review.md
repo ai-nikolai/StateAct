@@ -8,6 +8,8 @@ decisions behind it. It is meant to be updated as follow-up work lands.
 - `llamp` and every provider SDK were removed from the shared code.
   `stateact/backends.py` has the benchmark backends: local vLLM, one
   `requests`-based URL backend for OpenAI-compatible endpoints, and Manual.
+- Every agent supports `keep_n_context` (`-1` = all history, `0` = current
+  observation only, `n` = last n interaction pairs); prompt examples are kept.
 - The standalone library exports `LLM`, `BaseAgent`, `ReActAgent`,
   `AgentBenchAgent`, `StateActAgent` (string/JSON), `ReflexionAgent`,
   `AdaptAgent`, `BaseEnv`, `AlfworldEnv`, `TextcraftEnv`, `ScienceWorldEnv` and `main_loop`.
@@ -35,7 +37,7 @@ decisions behind it. It is meant to be updated as follow-up work lands.
   reads, and the benchmark is pinned to `alfworld==0.4.2`,
   `textworld==1.7.0`, `fast-downward-textworld==20.6.4` (verified).
 - CI now covers agents (mocked HTTP, fake vLLM), analysis and the experiment
-  tables: 182 tests, no network/GPU/API key.
+  tables: 194 tests, no network/GPU/API key.
 - Reproduction check with Qwen2.5-14B-Instruct:
   - ALFWorld (seed 42): **0.776119** (104/134), paper **0.78**.
   - WebShop (no seed): **0.34** (34/100), paper **0.33**.
@@ -150,7 +152,7 @@ the character-based fallback is used for logging only. The resampling path
 - `pytest` on Python 3.9-3.12
 - a wheel/sdist build and import check
 
-The 182 tests cover parsing, prompt dispatch, the experiment tables, scoring,
+The 194 tests cover parsing, prompt dispatch, the experiment tables, scoring,
 the URL/HTTP agent (mocked), the vLLM agent (fake modules), the analysis
 helpers and the model registry. None of them need ALFWorld, vLLM, an API key
 or a GPU.
