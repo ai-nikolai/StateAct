@@ -61,5 +61,7 @@ episodes.csv   # one row per environment
 ```
 
 ## In case you need to run it on an HPC cluster (e.g. PBS or SLURM) and you don't have access to docker
-See `hpc_scripts/README.md` for more details on how to run using Singularity.
+
+The ready-to-use A100 jobs and Singularity instructions are in
+[`../scripts/README.md`](../scripts/README.md).
 

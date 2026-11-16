@@ -21,8 +21,10 @@ decisions behind it. It is meant to be updated as follow-up work lands.
   `<results_folder>/<trial>/` via `stateact.results.RunLogger`. Common columns
   are identical; benchmark-specific values live in a `details` JSON column.
   The loaders also understand the historical ALFWorld/WebShop/TextCraft files.
-- `scripts/pbs/` holds A100 jobs for ALFWorld and WebShop, with
+- `scripts/pbs/` holds A100 jobs for ALFWorld, WebShop and TextCraft, with
   `scripts/submit_pbs.sh` as the submission helper.
+- The benchmark notebooks now live under top-level `analysis/` and use
+  `stateact.analysis`; the original paper notebooks are in `analysis/legacy/`.
 - The ALFWorld dependency is isolated in `stateact/envs/alfworld.py`
   (reset/step/skip). `base_config.yaml` only contains the keys `AlfredTWEnv`
   reads, and the benchmark is pinned to `alfworld==0.4.2`,

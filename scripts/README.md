@@ -1,11 +1,12 @@
 # Cluster run scripts
 
 This directory holds the PBS (PBS Professional) jobs for the local A100 queue
-(`hx`). The jobs use the two backends from `stateact.agents`:
+(`hx`). The jobs use the local vLLM backend from `stateact.agents`:
 
-- **ALFWorld**: local vLLM model, no API key.
-- **WebShop**: local vLLM model + the existing `webshop_runs/webshop.simg`
+- **ALFWorld**: `alfworld_runs/`, 134 eval environments.
+- **WebShop**: `webshop_runs/` + the existing `webshop_runs/webshop.simg`
   behind a unix socket.
+- **TextCraft**: `textcraft_runs/`, stateact planning with `max_depth=3`.
 
 ## Quick start
 
@@ -17,6 +18,9 @@ bash scripts/submit_pbs.sh alfworld
 
 # WebShop, Qwen2.5-3B-Instruct, 100 environments
 bash scripts/submit_pbs.sh webshop
+
+# TextCraft, Qwen2.5-3B-Instruct, stateact, depth 3, 100 games
+bash scripts/submit_pbs.sh textcraft
 
 # Check the command without submitting
 bash scripts/submit_pbs.sh alfworld --dry-run
@@ -34,6 +38,9 @@ bash scripts/submit_pbs.sh alfworld \
 
 bash scripts/submit_pbs.sh webshop \
     -v "MODEL=Qwen/Qwen2.5-7B-Instruct,AGENT=act,NUM_ENVS=30"
+
+bash scripts/submit_pbs.sh textcraft \
+    -v "MODEL=Qwen/Qwen2.5-32B-Instruct,AGENT=stateact,MAX_DEPTH=3,NUM_GAMES=100"
 ```
 
 Use one `-v` flag with a comma-separated list (qsub replaces the list when
@@ -42,15 +49,17 @@ given twice). Other qsub options work as usual, e.g.
 
 | Variable | Default | Used by |
 | --- | --- | --- |
-| `MODEL` | ALFWorld: `Qwen/Qwen2.5-7B-Instruct`; WebShop: `Qwen/Qwen2.5-3B-Instruct` | both |
-| `NUM_ENVS` | ALFWorld: 134; WebShop: 100 | both |
+| `MODEL` | ALFWorld: `Qwen/Qwen2.5-7B-Instruct`; WebShop/TextCraft: `Qwen/Qwen2.5-3B-Instruct` | all |
+| `NUM_ENVS` | ALFWorld: 134; WebShop: 100 | ALFWorld, WebShop |
+| `NUM_GAMES` | 100 | TextCraft |
 | `START_INDEX` | 0 | ALFWorld |
-| `SEED` | 42 | both |
-| `AGENT` | `stateact` | both |
-| `MAX_MODEL_LEN` | 16000 (ALFWorld), 6400 (WebShop) | both |
+| `SEED` | 42 | all |
+| `AGENT` | `stateact` | all |
+| `MAX_DEPTH` | 3 | TextCraft |
+| `MAX_MODEL_LEN` | 16000 (ALFWorld/TextCraft), 6400 (WebShop) | all |
 | `TRIAL_NAME` | timestamped | ALFWorld |
-| `RESULTS_FOLDER` | `results/stateact_local` | WebShop |
-| `CONDA_ENV` | `env_alfworld` / `env_webshop` | both |
+| `RESULTS_FOLDER` | `results/stateact_local` (WebShop), `results/stateact_repro` (TextCraft) | WebShop, TextCraft |
+| `CONDA_ENV` | `env_alfworld` / `env_webshop` / `env_textcraft` | all |
 | `WEBSHOP_SIMG` | `webshop_runs/webshop.simg` | WebShop |
 
 The scripts activate conda through `~/miniconda3/etc/profile.d/conda.sh` and
@@ -60,16 +69,19 @@ queue gives you a smaller GPU.
 
 ## Result files
 
-Both jobs use the shared `stateact.results` format:
+All three jobs use the shared `stateact.results` format:
 
 ```text
-<results_folder>/<trial>/summary.csv    # one row per agent/run
-<results_folder>/<trial>/episodes.csv   # one row per environment
+<results_folder>/summary.csv    # one row per agent/run
+<results_folder>/episodes.csv   # one row per environment
 ```
 
-ALFWorld defaults to `alfworld_runs/results/<trial>/`; WebShop writes into the
-folder passed as `RESULTS_FOLDER` (default `results/stateact_local/`).
-Benchmark-specific fields are in the `details` JSON column.
+ALFWorld defaults to `alfworld_runs/results/<trial>/`; WebShop writes into
+`webshop_runs/<RESULTS_FOLDER>/` and TextCraft into
+`textcraft_runs/<RESULTS_FOLDER>/`. Benchmark-specific fields are in the
+`details` JSON column.
+
+TextCraft also writes its per-run `ADaPT_*.json` trace next to the CSV files.
 
 ## PBS or SLURM?
 

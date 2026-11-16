@@ -48,8 +48,9 @@ experiments/
   webshop.yaml
 alfworld_runs/    # ALFWorld entry point + paper prompt artefacts
 webshop_runs/     # WebShop entry point + vendored environment client
-textcraft_runs/   # TextCraft entry points
-scripts/          # PBS jobs for A100 (ALFWorld + WebShop)
+textcraft_runs/   # TextCraft entry point
+analysis/         # unified ALFWorld/WebShop/TextCraft notebooks + legacy notebooks
+scripts/          # PBS jobs for A100 (ALFWorld, WebShop, TextCraft)
 tests/            # unit tests for stateact (no benchmark install needed)
 ```
 

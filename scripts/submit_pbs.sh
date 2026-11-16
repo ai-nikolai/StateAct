@@ -3,8 +3,9 @@
 # Submit one of the A100 PBS jobs from the repository root.
 #
 # Usage:
-#     bash scripts/submit_pbs.sh alfworld [qsub options...]
-#     bash scripts/submit_pbs.sh webshop  [qsub options...]
+#     bash scripts/submit_pbs.sh alfworld  [qsub options...]
+#     bash scripts/submit_pbs.sh webshop   [qsub options...]
+#     bash scripts/submit_pbs.sh textcraft [qsub options...]
 #     bash scripts/submit_pbs.sh alfworld --dry-run
 #
 # Any remaining arguments are passed to qsub, so variables can be overridden:
@@ -19,15 +20,15 @@ set -euo pipefail
 
 BENCHMARK="${1:-}"
 if [ -z "${BENCHMARK}" ]; then
-    echo "usage: $0 <alfworld|webshop> [qsub options...]" >&2
+    echo "usage: $0 <alfworld|webshop|textcraft> [qsub options...]" >&2
     exit 2
 fi
 shift
 
 case "${BENCHMARK}" in
-    alfworld|webshop) ;;
+    alfworld|webshop|textcraft) ;;
     *)
-        echo "error: unknown benchmark '${BENCHMARK}' (expected alfworld or webshop)" >&2
+        echo "error: unknown benchmark '${BENCHMARK}' (expected alfworld, webshop or textcraft)" >&2
         exit 2
         ;;
 esac

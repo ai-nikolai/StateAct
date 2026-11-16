@@ -97,7 +97,7 @@ python3 alfworld_run.py \
     # --end_index \
 ```
 
-7. In depth analysis happens in the `analysis_alfworld_eval_notebook.ipynb`
+7. In depth analysis is in [`../analysis/alfworld.ipynb`](../analysis/alfworld.ipynb)
 
 
 8. To run `ReAct` baseline:

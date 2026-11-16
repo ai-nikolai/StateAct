@@ -1,0 +1,73 @@
+#!/bin/bash
+#PBS -N stateact_textcraft_a100
+#PBS -l select=1:ncpus=4:mem=64gb:ngpus=1:gpu_type=A100
+#PBS -l walltime=06:00:00
+#PBS -q hx
+#PBS -j oe
+
+# TextCraft with a local model on one A100.
+#
+# The default is the reproduction configuration from the paper scripts:
+# stateact planning, max_depth=3, 100 games, seed 42. Override the model with
+# qsub -v, e.g.
+#     bash scripts/submit_pbs.sh textcraft -v "MODEL=Qwen/Qwen2.5-32B-Instruct"
+#
+# Submit from the repository root.
+
+set -u
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="${REPO_ROOT:-${PBS_O_WORKDIR:-$(cd "${SCRIPT_DIR}/../.." && pwd)}}"
+MODEL="${MODEL:-Qwen/Qwen2.5-3B-Instruct}"
+AGENT="${AGENT:-stateact}"
+NUM_GAMES="${NUM_GAMES:-100}"
+MAX_DEPTH="${MAX_DEPTH:-3}"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-16000}"
+SEED="${SEED:-42}"
+RESULTS_FOLDER="${RESULTS_FOLDER:-results/stateact_repro}"
+
+echo "Job:        ${PBS_JOBID:-local}"
+echo "Repo:       ${REPO_ROOT}"
+echo "Model:      ${MODEL}"
+echo "Agent:      ${AGENT}"
+echo "Depth:      ${MAX_DEPTH}"
+echo "Games:      ${NUM_GAMES}"
+echo "Results:    ${RESULTS_FOLDER}"
+echo "Started:    $(date)"
+nvidia-smi || true
+
+# vLLM 0.6.x cannot parse the GPU UUIDs that PBS puts in
+# CUDA_VISIBLE_DEVICES; use the first visible device ordinal instead.
+export CUDA_VISIBLE_DEVICES="${CUDA_DEVICE_ORDINAL:-0}"
+
+source "${HOME}/miniconda3/etc/profile.d/conda.sh"
+conda activate "${CONDA_ENV:-env_textcraft}"
+
+cd "${REPO_ROOT}/textcraft_runs"
+
+python3 run_textcraft_adapt.py \
+    --llm_type LOCAL \
+    --model_local "${MODEL}" \
+    --results_folder "${RESULTS_FOLDER}" \
+    --num_games "${NUM_GAMES}" \
+    --max_model_len "${MAX_MODEL_LEN}" \
+    --max_depth "${MAX_DEPTH}" \
+    --agent_type "${AGENT}" \
+    --gpus 1 \
+    --quantization 0 \
+    --seed "${SEED}"
+
+STATUS=$?
+echo "Finished:   $(date) (exit ${STATUS})"
+
+if [ "${STATUS}" -eq 0 ]; then
+    if [[ "${RESULTS_FOLDER}" = /* ]]; then
+        ANALYSIS_PATH="${RESULTS_FOLDER}"
+    else
+        ANALYSIS_PATH="${REPO_ROOT}/textcraft_runs/${RESULTS_FOLDER}"
+    fi
+    cd "${REPO_ROOT}"
+    python3 -m stateact.analysis textcraft "${ANALYSIS_PATH}" 2>/dev/null || true
+fi
+
+exit "${STATUS}"
